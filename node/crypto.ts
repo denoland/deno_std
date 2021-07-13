@@ -2,7 +2,7 @@
 // Copyright Joyent, Inc. and Node.js contributors. All rights reserved. MIT license.
 import { default as randomBytes } from "./_crypto/randomBytes.ts";
 import {
-  createHash as stdCreateHash,
+  createHasher as stdCreateHasher,
   Hasher,
   SupportedAlgorithm,
   supportedAlgorithms,
@@ -34,7 +34,7 @@ export class Hash extends Transform {
         callback();
       },
     });
-    const hash = this.hash = stdCreateHash(algorithm);
+    const hash = this.hash = stdCreateHasher(algorithm);
   }
 
   // TODO(kt3k): Implement copy method

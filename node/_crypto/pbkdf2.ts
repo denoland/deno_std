@@ -1,4 +1,4 @@
-import { createHash } from "../../hash/mod.ts";
+import * as hash from "../../hash/mod.ts";
 import { Buffer } from "../buffer.ts";
 import { MAX_ALLOC } from "./constants.ts";
 import { HASH_DATA } from "./types.ts";
@@ -30,7 +30,7 @@ function createHasher(alg: Algorithms) {
     normalizedAlg = alg;
   }
   return (value: Uint8Array) =>
-    Buffer.from(createHash(normalizedAlg).update(value).digest());
+    Buffer.from(hash.createHasher(normalizedAlg).update(value).digest());
 }
 
 function getZeroes(zeros: number) {

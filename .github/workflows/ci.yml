@@ -99,6 +99,7 @@ jobs:
           # This must match the version in hash/_wasm/rust-toolchain:
           rust-version: 1.53.0
           targets: wasm32-unknown-unknown
+          components: rustfmt
 
       - name: Set up wasm-bindgen-cli
         run: |-
