@@ -16,6 +16,8 @@ import {
 } from "./server.ts";
 import { parse } from "../flags/mod.ts";
 import { assert } from "../_util/assert.ts";
+import { readRange } from "../io/util.ts";
+import { createHash } from "../hash/mod.ts"
 
 interface EntryInfo {
   mode: string;
@@ -67,7 +69,113 @@ const MEDIA_TYPES: Record<string, string> = {
   ".css": "text/css",
   ".wasm": "application/wasm",
   ".mjs": "application/javascript",
+  ".otf": "font/otf",
+  ".ttf": "font/ttf",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".conf": "text/plain",
+  ".list": "textplain",
+  ".log": "text/plain",
+  ".ini": "text/plain",
+  ".vtt": "text/vtt",
+  ".yaml": "text/yaml",
+  ".yml": "text/yaml",
+  ".mid": "audio/midi",
+  ".midi": "audio/midi",
+  ".mp3": "audio/mp3",
+  ".mp4a": "audio/mp4",
+  ".m4a": "audio/mp4",
+  ".ogg": "audio/ogg",
+  ".spx": "audio/ogg",
+  ".opus": "audio/ogg",
+  ".wav": "audio/wav",
+  ".webm": "audio/webm",
+  ".aac": "audio/x-aac",
+  ".flac": "audio/x-flac",
+  ".mp4": "video/mp4",
+  ".mp4v": "video/mp4",
+  ".mkv": "video/x-matroska",
+  ".mov": "video/quicktime",
   ".svg": "image/svg+xml",
+  ".avif": "image/avif",
+  ".bmp": "image/bmp",
+  ".gif": "image/gif",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".tiff": "image/tiff",
+  ".psd": "image/vnd.adobe.photoshop",
+  ".ico": "image/vnd.microsoft.icon",
+  ".webp": "image/webp",
+  ".es": "application/ecmascript",
+  ".epub": "application/epub+zip",
+  ".jar": "application/java-archive",
+  ".war": "application/java-archive",
+  ".webmanifest": "application/manifest+json",
+  ".doc": "application/msword",
+  ".dot": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".dotx": "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+  ".cjs": "application/node",
+  ".bin": "application/octet-stream",
+  ".pkg": "application/octet-stream",
+  ".dump": "application/octet-stream",
+  ".exe": "application/octet-stream",
+  ".deploy": "application/octet-stream",
+  ".img": "application/octet-stream",
+  ".msi": "application/octet-stream",
+  ".pdf": "application/pdf",
+  ".pgp": "application/pgp-encrypted",
+  ".asc": "application/pgp-signature",
+  ".sig": "application/pgp-signature",
+  ".ai": "application/postscript",
+  ".eps": "application/postscript",
+  ".ps": "application/postscript",
+  ".rdf": "application/rdf+xml",
+  ".rss": "application/rss+xml",
+  ".rtf": "application/rtf",
+  ".apk": "application/vnd.android.package-archive",
+  ".key": "application/vnd.apple.keynote",
+  ".numbers": "application/vnd.apple.keynote",
+  ".pages": "application/vnd.apple.pages",
+  ".geo": "application/vnd.dynageo",
+  ".gdoc": "application/vnd.google-apps.document",
+  ".gslides": "application/vnd.google-apps.presentation",
+  ".gsheet": "application/vnd.google-apps.spreadsheet",
+  ".kml": "application/vnd.google-earth.kml+xml",
+  ".mkz": "application/vnd.google-earth.kmz",
+  ".icc": "application/vnd.iccprofile",
+  ".icm": "application/vnd.iccprofile",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".xlm": "application/vnd.ms-excel",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pot": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".potx": "application/vnd.openxmlformats-officedocument.presentationml.template",
+  ".xps": "application/vnd.ms-xpsdocument",
+  ".odc": "application/vnd.oasis.opendocument.chart",
+  ".odb": "application/vnd.oasis.opendocument.database",
+  ".odf": "application/vnd.oasis.opendocument.formula",
+  ".odg": "application/vnd.oasis.opendocument.graphics",
+  ".odp": "application/vnd.oasis.opendocument.presentation",
+  ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+  ".odt": "application/vnd.oasis.opendocument.text",
+  ".rar": "application/vnd.rar",
+  ".unityweb": "application/vnd.unity",
+  ".dmg": "application/x-apple-diskimage",
+  ".bz": "application/x-bzip",
+  ".crx": "application/x-chrome-extension",
+  ".deb": "application/x-debian-package",
+  ".php": "application/x-httpd-php",
+  ".iso": "application/x-iso9660-image",
+  ".sh": "application/x-sh",
+  ".sql": "application/x-sql",
+  ".srt": "application/x-subrip",
+  ".xml": "application/xml",
+  ".zip": "application/zip"
 };
 
 /** Returns the content-type based on the extension of a path. */
@@ -127,20 +235,87 @@ export async function serveFile(
     Deno.open(filePath),
     Deno.stat(filePath),
   ]);
+
   const headers = new Headers();
-  headers.set("content-length", fileInfo.size.toString());
+  headers.set("server", "deno");
+
+  // Base response
+  const response = {
+    status: 200,
+    statusText: "OK",
+    body: new Uint8Array(),
+    headers
+  };
+  
+  // Set mime-type using the file extension in filePath
   const contentTypeValue = contentType(filePath);
   if (contentTypeValue) {
     headers.set("content-type", contentTypeValue);
   }
+
+  // Set date header if access timestamp is available
+  if (fileInfo.atime instanceof Date) {
+    const date = new Date(fileInfo.atime);
+    headers.set("date", date.toUTCString());
+  }
+
+  // Set last modified header if access timestamp is available
+  if (fileInfo.mtime instanceof Date) {
+    const lastModified = new Date(fileInfo.mtime);
+    headers.set("last-modified", lastModified.toUTCString());
+
+    // Create a simple etag that is an md5 of the last modified date and filesize concatenated
+    const simpleEtag = createHash("md5").update(`${lastModified.toJSON()}${fileInfo.size}`).toString();
+    headers.set("etag", simpleEtag);
+
+    // If a `if-node-match` header is present and the value matches the tag return 304
+    const ifNoneMatch = req.headers.get("if-none-match");
+    if (ifNoneMatch && ifNoneMatch === simpleEtag) {
+      response.status = 304;
+      response.statusText = "Not Modified";
+      return response;
+    }
+  }
+    
+  // Set "accept-ranges" so that the server knows it can make range requests on future requests
+  headers.set("accept-ranges", "bytes");
+  
+  // Get and parse the "range" header
+  const range = req.headers.get("range") as string;
+  const rangeRe = /bytes=(\d+)-(\d+)?/;
+  const parsed = rangeRe.exec(range);
+  
+  // Use the parsed value if available, fallback to the start and end of the entire file
+  const start = parsed && parsed[1] ? +parsed[1] : 0;
+  const end   = parsed && parsed[2] ? +parsed[2] : fileInfo.size - 1;
+  
+  // If there is a range, set the status to 206, and set the "Content-range" header.
+  if (range) {
+    response.status = 206;
+    response.statusText = "Partial Content";
+    headers.set("content-range", `bytes ${start}-${end}/${fileInfo.size}`);
+  }
+
+  // Return 416 if `start` isn't less than `end`, or `start` or `end` are greater than the file's size
+  const maxRange = fileInfo.size - 1;
+  if (!(start < end) || start > maxRange || end > maxRange) {
+    response.status = 416;
+    response.statusText = "Requested Range Not Satisfiable";
+    return response;
+  }
+
+  // Read the selected range of the file
+  const bytes = await readRange(file, { start, end });
+
+  // Set content length and response body
+  headers.set("content-length", bytes.length.toString());
+  response.body = bytes;
+
   req.done.then(() => {
     file.close();
   });
-  return {
-    status: 200,
-    body: file,
-    headers,
-  };
+
+  return response;
 }
 
 // TODO(bartlomieju): simplify this after deno.stat and deno.readDir are fixed
