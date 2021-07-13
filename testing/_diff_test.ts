@@ -147,3 +147,84 @@ Deno.test({
     ]);
   },
 });
+
+Deno.test({
+  name: `"3.14" vs "2.71" (diffstr)`,
+  fn(): void {
+    const diffResult = diffstr("3.14", "2.71");
+    assertEquals(diffResult, [
+      {
+        type: "removed",
+        value: "3.14\n",
+        details: [
+          {
+            type: "removed",
+            value: "3",
+          },
+          {
+            type: "common",
+            value: ".",
+          },
+          {
+            type: "removed",
+            value: "14",
+          },
+          {
+            type: "common",
+            value: "\n",
+          },
+        ],
+      },
+      {
+        type: "added",
+        value: "2.71\n",
+        details: [
+          {
+            type: "added",
+            value: "2",
+          },
+          {
+            type: "common",
+            value: ".",
+          },
+          {
+            type: "added",
+            value: "71",
+          },
+          {
+            type: "common",
+            value: "\n",
+          },
+        ],
+      },
+    ]);
+  },
+});
+
+Deno.test({
+  name: `single line "a b" vs "c d" (diffstr)`,
+  fn(): void {
+    const diffResult = diffstr("a b", "c d");
+    assertEquals(diffResult, [
+      {
+        type: "removed",
+        value: "a b\n",
+        details: [
+          { type: "removed", value: "a" },
+          { type: "removed", value: " " },
+          { type: "removed", value: "b" },
+          { type: "common", value: "\n" },
+        ],
+      },
+      {
+        type: "added",
+        value: "c d\n",
+        details: [
+          { type: "added", value: "c" },
+          { type: "added", value: "d" },
+          { type: "common", value: "\n" },
+        ],
+      },
+    ]);
+  },
+});

@@ -287,7 +287,7 @@ export function diffstr(A: string, B: string) {
     ).map((result, i, t) => {
       if (
         (result.type === DiffType.common) && (t[i - 1]) &&
-        (t[i - 1]?.type === t[i + 1]?.type)
+        (t[i - 1]?.type === t[i + 1]?.type) && /\s+/.test(result.value)
       ) {
         result.type = t[i - 1].type;
       }
