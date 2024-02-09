@@ -14,6 +14,8 @@ import { DateTimeFormatter } from "./_common.ts";
  * - `yy` - 2-digit year.
  * - `M` - numeric month.
  * - `MM` - 2-digit month.
+ * - `w` - numeric week.
+ * - `ww` - 2-digit week.
  * - `d` - numeric day.
  * - `dd` - 2-digit day.
  *

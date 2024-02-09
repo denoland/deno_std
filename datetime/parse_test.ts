@@ -62,6 +62,22 @@ Deno.test({
       parse("2019-01-03", "yyyy-MM-dd"),
       new Date(2019, 0, 3),
     );
+    assertEquals(
+      parse("2022-W1", "yyyy-w"),
+      new Date(2022, 0, 3),
+    );
+    assertEquals(
+      parse("2022-W01", "yyyy-ww"),
+      new Date(2022, 0, 3),
+    );
+    assertEquals(
+      parse("2022-W09", "yyyy-ww"),
+      new Date(2022, 1, 28),
+    );
+    assertEquals(
+      parse("2009-W53", "yyyy-ww"),
+      new Date(2009, 11, 28),
+    );
   },
 });
 

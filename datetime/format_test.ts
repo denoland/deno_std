@@ -102,5 +102,22 @@ Deno.test({
       "1",
       format(new Date("2019-01-01T13:00:00.000"), "h"),
     );
+
+    assertEquals(
+      format(new Date(2022, 0, 3), "yyyy-w"),
+      "2022-W1",
+    );
+    assertEquals(
+      format(new Date(2022, 0, 3), "yyyy-ww"),
+      "2022-W01",
+    );
+    assertEquals(
+      format(new Date(2022, 1, 28), "yyyy-ww"),
+      "2022-W09",
+    );
+    assertEquals(
+      format(new Date(2009, 11, 28), "yyyy-ww"),
+      "2009-W53",
+    );
   },
 });

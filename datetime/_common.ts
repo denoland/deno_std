@@ -1,6 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 // This module is browser compatible.
 
+import { weekOfYear } from "./week_of_year.ts";
+
 export type Token = {
   type: string;
   value: string | number;
@@ -92,6 +94,7 @@ type DateTimeFormatPartTypes =
   | "second"
   | "timeZoneName"
   // | "weekday"
+  | "week"
   | "year"
   | "fractionalSecond";
 
@@ -201,6 +204,14 @@ const defaultRules = [
     test: createLiteralTestFunction("S"),
     fn: (): CallbackResult => ({ type: "fractionalSecond", value: 1 }),
   },
+  {
+    test: createLiteralTestFunction("ww"),
+    fn: (): CallbackResult => ({ type: "week", value: "2-digit" }),
+  },
+  {
+    test: createLiteralTestFunction("w"),
+    fn: (): CallbackResult => ({ type: "week", value: "numeric" }),
+  },
 
   {
     test: createLiteralTestFunction("a"),
@@ -289,6 +300,23 @@ export class DateTimeFormatter {
             }
             case "2-digit": {
               string += digits(value, 2);
+              break;
+            }
+            default:
+              throw Error(
+                `FormatterError: value "${token.value}" is not supported`,
+              );
+          }
+          break;
+        }
+        case "week": {
+          switch (token.value) {
+            case "numeric": {
+              string += `W${weekOfYear(date)}`;
+              break;
+            }
+            case "2-digit": {
+              string += `W${digits(weekOfYear(date), 2)}`;
               break;
             }
             default:
@@ -444,6 +472,23 @@ export class DateTimeFormatter {
             }
             case "long": {
               value = /^[a-zA-Z]+/.exec(string)?.[0] as string;
+              break;
+            }
+            default:
+              throw Error(
+                `ParserError: value "${token.value}" is not supported`,
+              );
+          }
+          break;
+        }
+        case "week": {
+          switch (token.value) {
+            case "numeric": {
+              value = /^W\d{1,2}/.exec(string)?.[0] as string;
+              break;
+            }
+            case "2-digit": {
+              value = /^W\d{2}/.exec(string)?.[0] as string;
               break;
             }
             default:
@@ -629,6 +674,13 @@ export class DateTimeFormatter {
           } else {
             utc ? date.setUTCMonth(value) : date.setMonth(value);
           }
+          break;
+        }
+        case "week": {
+          const value = parseInt(part.value.slice(1));
+          date.setFullYear(date.getFullYear(), 0, value > 52 ? -6 : 1);
+          while (date.getDay() !== 1) date.setDate(date.getDate() + 1);
+          date.setDate(date.getDate() + (value - 1) * 7);
           break;
         }
         case "day": {
