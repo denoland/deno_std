@@ -101,6 +101,7 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
     }
 
     if (testSuite) {
+      this.describe.only = testSuite.describe.only ?? this.describe.only;
       TestSuiteInternal.addStep(testSuite, this);
     } else {
       const {
@@ -222,12 +223,15 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
           TestSuiteInternal.addingOnlyStep(suite);
         }
       } else {
-        if (step.only) TestSuiteInternal.addingOnlyStep(suite);
+        const isOnlySuite = step.suite?.symbol &&
+          TestSuiteInternal.suites.get(step.suite?.symbol)?.describe.only;
+        if (step.only || isOnlySuite) TestSuiteInternal.addingOnlyStep(suite);
       }
     }
 
     if (
-      !(suite.hasOnlyStep && !(step instanceof TestSuiteInternal) && !step.only)
+      !suite.hasOnlyStep || (step instanceof TestSuiteInternal) || step.only ||
+      suite.describe.only
     ) {
       suite.steps.push(step);
     }

@@ -5,6 +5,7 @@ import {
   assertObjectMatch,
   assertStrictEquals,
 } from "../assert/mod.ts";
+import { assertSnapshot } from "./snapshot.ts";
 import {
   afterAll,
   afterEach,
@@ -1885,4 +1886,16 @@ Deno.test("global", async (t) => {
       );
     });
   });
+});
+
+Deno.test("describe.only() works as expected with complex use case", async (t) => {
+  const command = new Deno.Command(Deno.execPath(), {
+    args: ["test", new URL("testdata/only.ts", import.meta.url).href],
+    env: { NO_COLOR: "true" },
+  });
+  const { stdout } = await command.output();
+  await assertSnapshot(
+    t,
+    new TextDecoder().decode(stdout).replace(/\d+m?s/g, "<TIME>"),
+  );
 });
