@@ -6,6 +6,7 @@ import { parse } from "./parse.ts";
  * Returns the parsed version, or undefined if it's not valid.
  * @param version The version string to parse
  * @returns A valid SemVer or `undefined`
+ * @deprecated (will be removed after 0.213.0) Use {@linkcode parse} inside a try-catch statement instead.
  */
 export function tryParse(version?: string): SemVer | undefined {
   if (version === undefined) {
