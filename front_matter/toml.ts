@@ -1,12 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-import {
-  createExtractor,
-  type Extractor,
-  type Parser,
-} from "./create_extractor.ts";
-import { parse } from "../toml/parse.ts";
+import { parseToml } from "./parse_toml.ts";
 
-export const extract: Extractor = createExtractor({
-  ["toml"]: parse as Parser,
-});
+/**
+ * @deprecated (will be removed in 0.222.0) Use {@linkcode parseToml} instead.
+ */
+export const extract = parseToml;

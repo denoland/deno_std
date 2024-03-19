@@ -1,12 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-import {
-  createExtractor,
-  type Extractor,
-  type Parser,
-} from "./create_extractor.ts";
-import { parse } from "../yaml/parse.ts";
+import { parseYaml } from "./parse_yaml.ts";
 
-export const extract: Extractor = createExtractor({
-  ["yaml"]: parse as Parser,
-});
+/**
+ * @deprecated (will be removed in 0.222.0) Use {@linkcode parseYaml} instead.
+ */
+export const extract = parseYaml;
