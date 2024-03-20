@@ -1,8 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 /**
  * Helpers for interacting with Deno's permissions system.
+ *
+ * This module is unstable. The APIs are subject to change.
+ *
  * @module
- * @deprecated (will be removed in 1.0.0) Use the {@link https://deno.land/api?s=Deno.Permissions | Deno Permissions API} directly instead.
  */
 
 const { PermissionDenied } = Deno.errors;
@@ -46,8 +48,6 @@ function getPermissionString(descriptors: Deno.PermissionDescriptor[]): string {
  *
  * If one of the permissions requires a prompt, the function will attempt to
  * prompt for it.  The function resolves with all of the granted permissions.
- *
- * @deprecated (will be removed in 1.0.0) Use the {@link https://deno.land/api?s=Deno.Permissions | Deno Permissions API} directly instead.
  */
 export async function grant(
   ...descriptors: Deno.PermissionDescriptor[]
@@ -67,8 +67,6 @@ export async function grant(
  *
  * If one of the permissions requires a prompt, the function will attempt to
  * prompt for it.  The function resolves with all of the granted permissions.
- *
- * @deprecated (will be removed in 1.0.0) Use the {@link https://deno.land/api?s=Deno.Permissions | Deno Permissions API} directly instead.
  */
 export async function grant(
   descriptors: Deno.PermissionDescriptor[],
@@ -104,8 +102,6 @@ export async function grant(
  * If any of the permissions are denied, the function will reject for the first
  * permission that is denied.  If all permissions are granted, the function
  * will resolve.
- *
- * @deprecated (will be removed in 1.0.0) Use the {@link https://deno.land/api?s=Deno.Permissions | Deno Permissions API} directly instead.
  */
 export async function grantOrThrow(
   ...descriptors: Deno.PermissionDescriptor[]
@@ -121,8 +117,6 @@ export async function grantOrThrow(
  * If any of the permissions are denied, the function will reject mentioning the
  * the denied permissions.  If all permissions are granted, the function will
  * resolve.
- *
- * @deprecated (will be removed in 1.0.0) Use the {@link https://deno.land/api?s=Deno.Permissions | Deno Permissions API} directly instead.
  */
 export async function grantOrThrow(
   descriptors: Deno.PermissionDescriptor[],
