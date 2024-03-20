@@ -13,7 +13,7 @@ export * from "./stringify.ts";
 export * from "./parse.ts";
 
 /** Options for {@linkcode load} and {@linkcode loadSync}. */
-export interface LoadOptions {
+export interface LoadOptions<V extends string = string> {
   /**
    * Optional path to `.env` file. To prevent the default value from being
    * used, set to `null`.
@@ -60,18 +60,26 @@ export interface LoadOptions {
    * @default {"./.env.defaults"}
    */
   defaultsPath?: string | null;
+
+  /**
+   * Optional array of expected variable names.
+   * If set, the names are explicitly checked to be present in the loaded environment,
+   * and used for asserting the type of the return value of the loading functions.
+   */
+  expectVars?: readonly V[];
 }
 
 /** Works identically to {@linkcode load}, but synchronously. */
-export function loadSync(
+export function loadSync<V extends string>(
   {
     envPath = ".env",
     examplePath = ".env.example",
     defaultsPath = ".env.defaults",
     export: _export = false,
     allowEmptyValues = false,
-  }: LoadOptions = {},
-): Record<string, string> {
+    expectVars,
+  }: LoadOptions<V> = {},
+): Record<V, string> {
   const conf = envPath ? parseFileSync(envPath) : {};
 
   if (defaultsPath) {
@@ -87,6 +95,8 @@ export function loadSync(
     const confExample = parseFileSync(examplePath);
     assertSafe(conf, confExample, allowEmptyValues);
   }
+
+  assertHaveVars(conf, expectVars, allowEmptyValues);
 
   if (_export) {
     for (const [key, value] of Object.entries(conf)) {
@@ -207,6 +217,7 @@ export function loadSync(
  * |examplePath|./.env.example|Path and filename of the `.env.example` file. Use null to prevent the .env.example file from being loaded.
  * |export|false|When true, this will export all environment variables in the `.env` and `.env.default` files to the process environment (e.g. for use by `Deno.env.get()`) but only if they are not already set.  If a variable is already in the process, the `.env` value is ignored.
  * |allowEmptyValues|false|Allows empty values for specified env variables (throws otherwise)
+ * |expectVars|undefined|Forces an explicit check of the presence of the specific variables (and throws if those are absent), and infers the return value type
  *
  * ### Example configuration
  * ```ts
@@ -218,6 +229,13 @@ export function loadSync(
  *     export: true,
  *     allowEmptyValues: true,
  *   });
+ *
+ * const { NAME, EMAIL } = await load({
+ *     envPath: "./.env_prod",
+ *     export: true,
+ *     allowEmptyValues: true,
+ *     expectVars: ["NAME", "EMAIL"] as const,
+ *   }); // "confTyped" resolves to Record<"NAME" | "EMAIL", string>
  * ```
  *
  * ## Permissions
@@ -270,15 +288,16 @@ export function loadSync(
  *   `KEY=${NO_SUCH_KEY:-${EXISTING_KEY:-default}}` which becomes
  *   `{ KEY: "<EXISTING_KEY_VALUE_FROM_ENV>" }`)
  */
-export async function load(
+export async function load<V extends string>(
   {
     envPath = ".env",
     examplePath = ".env.example",
     defaultsPath = ".env.defaults",
     export: _export = false,
     allowEmptyValues = false,
-  }: LoadOptions = {},
-): Promise<Record<string, string>> {
+    expectVars,
+  }: LoadOptions<V> = {},
+): Promise<Record<V, string>> {
   const conf = envPath ? await parseFile(envPath) : {};
 
   if (defaultsPath) {
@@ -294,6 +313,8 @@ export async function load(
     const confExample = await parseFile(examplePath);
     assertSafe(conf, confExample, allowEmptyValues);
   }
+
+  assertHaveVars(conf, expectVars, allowEmptyValues);
 
   if (_export) {
     for (const [key, value] of Object.entries(conf)) {
@@ -365,6 +386,42 @@ function assertSafe(
       missingEnvVars,
     );
   }
+}
+
+function assertHaveVars<V extends string>(
+  conf: Record<string, string>,
+  expectVars: LoadOptions<V>["expectVars"],
+  allowEmptyValues: boolean,
+): asserts conf is Record<V, string> {
+  if (expectVars == undefined) return;
+
+  const missingEnvVars: string[] = [];
+
+  for (const item of expectVars) {
+    const value = conf[item] ?? Deno.env.get(item);
+
+    if (value === undefined || (value === "" && !allowEmptyValues)) {
+      missingEnvVars.push(item);
+    }
+  }
+
+  if (missingEnvVars.length === 0) return;
+
+  const errorMessages = [
+    `The following variables are expected but not present in the environment:\n  ${
+      missingEnvVars.join(
+        ", ",
+      )
+    }`,
+    `Make sure to add them to your env file.`,
+    !allowEmptyValues &&
+    `If you expect any of these variables to be empty, you can set the allowEmptyValues option to true.`,
+  ];
+
+  throw new MissingEnvVarsError(
+    errorMessages.filter(Boolean).join("\n\n"),
+    missingEnvVars,
+  );
 }
 
 /**

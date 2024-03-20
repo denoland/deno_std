@@ -269,6 +269,51 @@ Deno.test("load() loads .env and .env.defaults successfully from default file na
   assertEquals(conf.DEFAULT1, "Some Default", "default value loaded");
 });
 
+Deno.test("load() checks that expected variables are found after loading from the filesystem", async () => {
+  const loadOptions = {
+    envPath: path.join(testdataDir, "./.env"),
+    examplePath: path.join(testdataDir, "./.env.example"),
+    defaultsPath: path.join(testdataDir, "./.env.defaults"),
+    expectVars: ["GREETING", "DEFAULT1"] as const,
+  } satisfies LoadOptions;
+  const loadOptionsToFail = {
+    envPath: path.join(testdataDir, "./.env"),
+    examplePath: path.join(testdataDir, "./.env.example"),
+    defaultsPath: path.join(testdataDir, "./.env.defaults"),
+    expectVars: ["GREETING", "DEFAULT1", "WHERE_AM_I"] as const,
+  } satisfies LoadOptions;
+
+  const conf = loadSync(loadOptions);
+  assertEquals(conf.GREETING, "hello world", "loaded from .env");
+  assertEquals(
+    conf.DEFAULT1,
+    "Some Default",
+    "default value from the defaults file",
+  );
+
+  const confAsync = await load(loadOptions);
+  assertEquals(confAsync.GREETING, "hello world", "loaded from .env");
+  assertEquals(
+    confAsync.DEFAULT1,
+    "Some Default",
+    "default value from the defaults file",
+  );
+
+  const error: MissingEnvVarsError = assertThrows(
+    () => loadSync(loadOptionsToFail),
+    MissingEnvVarsError,
+  );
+
+  assertEquals(error.missing, ["WHERE_AM_I"]);
+
+  const asyncError: MissingEnvVarsError = await assertRejects(
+    async () => await load(loadOptionsToFail),
+    MissingEnvVarsError,
+  );
+
+  assertEquals(asyncError.missing, ["WHERE_AM_I"]);
+});
+
 Deno.test("load() expands empty values from process env expand as empty value", async () => {
   try {
     Deno.env.set("EMPTY", "");
