@@ -312,6 +312,7 @@ function parseFileSync(
     return parse(Deno.readTextFileSync(filepath));
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) return {};
+    if (e instanceof Deno.errors.PermissionDenied && Deno.permissions.querySync({ name: "read", path: filepath }).state !== "granted") return {};
     throw e;
   }
 }
@@ -323,6 +324,7 @@ async function parseFile(
     return parse(await Deno.readTextFile(filepath));
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) return {};
+    if (e instanceof Deno.errors.PermissionDenied && (await Deno.permissions.query({ name: "read", path: filepath })).state !== "granted") return {};
     throw e;
   }
 }
