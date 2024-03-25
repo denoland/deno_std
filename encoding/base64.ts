@@ -81,7 +81,7 @@ const base64abc = [
 ];
 
 /**
- * Converts data into a base64-encoded string.
+ * Converts data into a {@link https://datatracker.ietf.org/doc/html/rfc4648#section-4 | base64}-encoded string.
  *
  * @see {@link https://datatracker.ietf.org/doc/html/rfc4648#section-4}
  *
@@ -130,7 +130,7 @@ export function encodeBase64(data: ArrayBuffer | Uint8Array | string): string {
 }
 
 /**
- * Decodes a base64-encoded string.
+ * Decodes a {@link https://datatracker.ietf.org/doc/html/rfc4648#section-4 | base64}-encoded string.
  *
  * @see {@link https://datatracker.ietf.org/doc/html/rfc4648#section-4}
  *

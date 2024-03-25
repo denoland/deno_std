@@ -16,8 +16,6 @@ const EXCLUDED_PATHS = [
   "http/_negotiation",
   "crypto/_wasm",
   "crypto/_fnv",
-  "encoding/_yaml",
-  "encoding/_toml",
   "_tools",
   "_util",
   "docs",
