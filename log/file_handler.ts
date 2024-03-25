@@ -38,9 +38,12 @@ export class FileHandler extends BaseHandler {
   protected _mode: LogMode;
   protected _openOptions: Deno.OpenOptions;
   protected _encoder: TextEncoder = new TextEncoder();
-  #unloadCallback = (() => {
-    this.destroy();
-  }).bind(this);
+  #isOpen: boolean;
+  #unloadCallback = (() => this.close()).bind(this);
+
+  [Symbol.dispose]() {
+    this.close();
+  }
 
   constructor(levelName: LevelName, options: FileHandlerOptions) {
     super(levelName, options);
@@ -54,13 +57,24 @@ export class FileHandler extends BaseHandler {
       truncate: this._mode !== "a",
       write: true,
     };
+    this.#isOpen = false;
   }
 
-  override setup() {
+  open() {
+    if (this.#isOpen) return;
     this._file = Deno.openSync(this._filename, this._openOptions);
     this.#resetBuffer();
-
     addEventListener("unload", this.#unloadCallback);
+    this.#isOpen = true;
+  }
+
+  close() {
+    if (!this.#isOpen) return;
+    this.flush();
+    this._file?.close();
+    this._file = undefined;
+    removeEventListener("unload", this.#unloadCallback);
+    this.#isOpen = false;
   }
 
   override handle(logRecord: LogRecord) {
@@ -99,12 +113,5 @@ export class FileHandler extends BaseHandler {
 
   #resetBuffer() {
     this._pointer = 0;
-  }
-
-  override destroy() {
-    this.flush();
-    this._file?.close();
-    this._file = undefined;
-    removeEventListener("unload", this.#unloadCallback);
   }
 }

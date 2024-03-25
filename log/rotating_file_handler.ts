@@ -58,15 +58,19 @@ export class RotatingFileHandler extends FileHandler {
   }
 
   override setup() {
+    this.open();
+    super.setup();
+  }
+  override open() {
     if (this.#maxBytes < 1) {
-      this.destroy();
+      this.close();
       throw new Error("maxBytes cannot be less than 1");
     }
     if (this.#maxBackupCount < 1) {
-      this.destroy();
+      this.close();
       throw new Error("maxBackupCount cannot be less than 1");
     }
-    super.setup();
+    super.open();
 
     if (this._mode === "w") {
       // Remove old backups too as it doesn't make sense to start with a clean
@@ -84,7 +88,7 @@ export class RotatingFileHandler extends FileHandler {
       // Throw if any backups also exist
       for (let i = 1; i <= this.#maxBackupCount; i++) {
         if (existsSync(this._filename + "." + i)) {
-          this.destroy();
+          this.close();
           throw new Deno.errors.AlreadyExists(
             "Backup log file " + this._filename + "." + i + " already exists",
           );

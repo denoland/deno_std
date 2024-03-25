@@ -14,6 +14,11 @@ export function setup(config: LogConfig) {
 
   // tear down existing handlers
   state.handlers.forEach((handler) => {
+    /**
+     * replace with
+     * `const close = (handler as FileHandler).close; if (close instanceof Function) close();`
+     * after removal of `BaseHandler.destroy()`
+     */
     handler.destroy();
   });
   state.handlers.clear();
@@ -22,6 +27,11 @@ export function setup(config: LogConfig) {
   const handlers = state.config.handlers || {};
 
   for (const [handlerName, handler] of Object.entries(handlers)) {
+    /**
+     * replace with
+     * `const open = (handler as FileHandler).open; if (open instanceof Function) open();`
+     * after removal of `BaseHandler.setup()`
+     */
     handler.setup();
     state.handlers.set(handlerName, handler);
   }

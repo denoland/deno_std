@@ -36,8 +36,8 @@ Deno.test({
       maxBackupCount: 3,
       mode: "w",
     });
-    fileHandler.setup();
-    fileHandler.destroy();
+    fileHandler.open();
+    fileHandler.close();
 
     assertEquals((await Deno.stat(LOG_FILE)).size, 0);
     assert(!existsSync(LOG_FILE + ".1"));
@@ -64,7 +64,7 @@ Deno.test({
     });
     assertThrows(
       () => {
-        fileHandler.setup();
+        fileHandler.open();
       },
       Deno.errors.AlreadyExists,
       "Backup log file " + LOG_FILE + ".3 already exists",
@@ -84,7 +84,7 @@ Deno.test({
       maxBackupCount: 3,
       mode: "w",
     });
-    fileHandler.setup();
+    fileHandler.open();
 
     fileHandler.handle(
       new LogRecord({
@@ -133,7 +133,7 @@ Deno.test({
       maxBackupCount: 3,
       mode: "w",
     });
-    fileHandler.setup();
+    fileHandler.open();
 
     fileHandler.handle(
       new LogRecord({
@@ -160,7 +160,7 @@ Deno.test({
       }),
     );
 
-    fileHandler.destroy();
+    fileHandler.close();
 
     assertEquals((await Deno.stat(LOG_FILE)).size, 10);
     assertEquals((await Deno.stat(LOG_FILE + ".1")).size, 20);
@@ -193,7 +193,7 @@ Deno.test({
       maxBackupCount: 3,
       mode: "a",
     });
-    fileHandler.setup();
+    fileHandler.open();
     fileHandler.handle(
       new LogRecord({
         msg: "AAA",
@@ -202,7 +202,7 @@ Deno.test({
         loggerName: "default",
       }),
     ); // 'ERROR AAA\n' = 10 bytes
-    fileHandler.destroy();
+    fileHandler.close();
 
     const decoder = new TextDecoder();
     assertEquals(decoder.decode(Deno.readFileSync(LOG_FILE)), "ERROR AAA\n");
@@ -238,7 +238,7 @@ Deno.test({
           maxBackupCount: 3,
           mode: "w",
         });
-        fileHandler.setup();
+        fileHandler.open();
       },
       Error,
       "maxBytes cannot be less than 1",
@@ -257,7 +257,7 @@ Deno.test({
           maxBackupCount: 0,
           mode: "w",
         });
-        fileHandler.setup();
+        fileHandler.open();
       },
       Error,
       "maxBackupCount cannot be less than 1",
@@ -274,7 +274,7 @@ Deno.test({
       maxBackupCount: 1,
       mode: "w",
     });
-    fileHandler.setup();
+    fileHandler.open();
 
     const msg = "。";
     const msgLength = msg.length;
@@ -286,7 +286,7 @@ Deno.test({
     fileHandler.log(msg); // logs 4 bytes (including '\n')
     fileHandler.log(msg); // max bytes is 7, but this would be 8.  Rollover.
 
-    fileHandler.destroy();
+    fileHandler.close();
 
     const fileSize1 = (await Deno.stat(LOG_FILE)).size;
     const fileSize2 = (await Deno.stat(LOG_FILE + ".1")).size;
@@ -309,10 +309,10 @@ Deno.test({
       maxBackupCount: 10,
     });
     const logOverBufferLimit = "A".repeat(4096);
-    fileHandler.setup();
+    fileHandler.open();
 
     fileHandler.log(logOverBufferLimit);
-    fileHandler.destroy();
+    fileHandler.close();
 
     assertEquals(
       Deno.readTextFileSync(LOG_FILE),
@@ -334,12 +334,12 @@ Deno.test({
     });
     const veryLargeLog = "A".repeat(10000);
     const regularLog = "B".repeat(100);
-    fileHandler.setup();
+    fileHandler.open();
 
     fileHandler.log(regularLog);
     fileHandler.log(veryLargeLog);
     fileHandler.log(regularLog);
-    fileHandler.destroy();
+    fileHandler.close();
 
     assertEquals(
       Deno.readTextFileSync(LOG_FILE),

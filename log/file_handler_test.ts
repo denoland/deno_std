@@ -18,8 +18,8 @@ Deno.test({
         assertEquals(text.slice(-1), "\n");
       }
 
-      override destroy() {
-        super.destroy();
+      override close() {
+        super.close();
         Deno.removeSync(LOG_FILE);
       }
     }
@@ -28,7 +28,7 @@ Deno.test({
       filename: LOG_FILE,
       mode: "w",
     });
-    testFileHandler.setup();
+    testFileHandler.open();
 
     for (let i = 0; i < 300; i++) {
       testFileHandler.handle(
@@ -51,7 +51,7 @@ Deno.test({
       mode: "w",
     });
 
-    fileHandler.setup();
+    fileHandler.open();
     fileHandler.handle(
       new LogRecord({
         msg: "Hello World",
@@ -60,10 +60,10 @@ Deno.test({
         loggerName: "default",
       }),
     );
-    fileHandler.destroy();
+    fileHandler.close();
     const firstFileSize = (await Deno.stat(LOG_FILE)).size;
 
-    fileHandler.setup();
+    fileHandler.open();
     fileHandler.handle(
       new LogRecord({
         msg: "Hello World",
@@ -72,7 +72,7 @@ Deno.test({
         loggerName: "default",
       }),
     );
-    fileHandler.destroy();
+    fileHandler.close();
     const secondFileSize = (await Deno.stat(LOG_FILE)).size;
 
     assertEquals(secondFileSize, firstFileSize);
@@ -90,7 +90,7 @@ Deno.test({
     Deno.writeFileSync(LOG_FILE, new TextEncoder().encode("hello world"));
 
     assertThrows(() => {
-      fileHandler.setup();
+      fileHandler.open();
     }, Deno.errors.AlreadyExists);
 
     Deno.removeSync(LOG_FILE);
@@ -104,7 +104,7 @@ Deno.test({
       filename: LOG_FILE,
       mode: "w",
     });
-    fileHandler.setup();
+    fileHandler.open();
     fileHandler.handle(
       new LogRecord({
         msg: "AAA",
@@ -130,7 +130,7 @@ Deno.test({
       filename: LOG_FILE,
       mode: "w",
     });
-    fileHandler.setup();
+    fileHandler.open();
 
     fileHandler.handle(
       new LogRecord({
@@ -171,10 +171,10 @@ Deno.test({
       mode: "w",
     });
     const logOverBufferLimit = "A".repeat(4096);
-    fileHandler.setup();
+    fileHandler.open();
 
     fileHandler.log(logOverBufferLimit);
-    fileHandler.destroy();
+    fileHandler.close();
 
     assertEquals(
       Deno.readTextFileSync(LOG_FILE),
@@ -194,12 +194,12 @@ Deno.test({
     });
     const veryLargeLog = "A".repeat(10000);
     const regularLog = "B".repeat(100);
-    fileHandler.setup();
+    fileHandler.open();
 
     fileHandler.log(regularLog);
     fileHandler.log(veryLargeLog);
     fileHandler.log(regularLog);
-    fileHandler.destroy();
+    fileHandler.close();
 
     assertEquals(
       Deno.readTextFileSync(LOG_FILE),

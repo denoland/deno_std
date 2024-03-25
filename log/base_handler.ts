@@ -58,7 +58,14 @@ export class BaseHandler {
   }
 
   log(_msg: string) {}
+
+  /**
+   * @deprecated (will be removed in 0.220.0)
+   */
   setup() {}
+  /**
+   * @deprecated (will be removed in 0.220.0)
+   */
   destroy() {}
 
   [Symbol.dispose]() {
