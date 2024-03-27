@@ -1,7 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+import { rangeIncludes } from "./range_includes.ts";
 import { ANY, INVALID, MAX } from "./constants.ts";
 import type { Comparator, Range, SemVer } from "./types.ts";
-import { testRange } from "./test_range.ts";
 import { greaterThan } from "./greater_than.ts";
 
 function comparatorMax(comparator: Comparator): SemVer {
@@ -51,7 +51,7 @@ export function rangeMax(range: Range): SemVer {
   for (const comparators of range) {
     for (const comparator of comparators) {
       const candidate = comparatorMax(comparator);
-      if (!testRange(candidate, range)) continue;
+      if (!rangeIncludes(range, candidate)) continue;
       max = (max && greaterThan(max, candidate)) ? max : candidate;
     }
   }

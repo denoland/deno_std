@@ -270,6 +270,7 @@ export * from "./constants.ts";
 export * from "./difference.ts";
 export * from "./format.ts";
 export * from "./test_range.ts";
+export * from "./range_includes.ts";
 export * from "./increment.ts";
 export * from "./is_semver.ts";
 export * from "./max_satisfying.ts";
