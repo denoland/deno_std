@@ -67,6 +67,7 @@ Deno.test("expandGlob() with wildcard input returns all test data", async functi
     "abc",
     "abcdef",
     "abcdefghi",
+    "broken-link",
     "link",
     "subdir",
   ]);
@@ -79,6 +80,7 @@ Deno.test("expandGlobSync() with wildcard input returns all test data", function
     "abc",
     "abcdef",
     "abcdefghi",
+    "broken-link",
     "link",
     "subdir",
   ]);
@@ -107,6 +109,7 @@ Deno.test("expandGlob() with subdir/../* input expands parent", async function (
     "abc",
     "abcdef",
     "abcdefghi",
+    "broken-link",
     "link",
     "subdir",
   ]);
@@ -119,6 +122,7 @@ Deno.test("expandGlobSync() with subdir/../* input expands parent", function () 
     "abc",
     "abcdef",
     "abcdefghi",
+    "broken-link",
     "link",
     "subdir",
   ]);
@@ -204,6 +208,7 @@ Deno.test("expandGlob() with globstar parent and globstar option set to false re
     "abc",
     "abcdef",
     "abcdefghi",
+    "broken-link",
     "link",
     "subdir",
   ]);
@@ -217,6 +222,7 @@ Deno.test("expandGlobSync() with globstar parent and globstar option set to fals
     "abc",
     "abcdef",
     "abcdefghi",
+    "broken-link",
     "link",
     "subdir",
   ]);
@@ -271,7 +277,7 @@ Deno.test("expandGlob() accepts followSymlinks option set to true", async functi
     root: join(EG_OPTIONS.root!, "link"),
     followSymlinks: true,
   };
-  assertEquals(await expandGlobArray("*", options), ["abc"]);
+  assertEquals(await expandGlobArray("*", options), ["abc", "broken-link"]);
 });
 
 Deno.test("expandGlobSync() accepts followSymlinks option set to true", function () {
@@ -280,7 +286,7 @@ Deno.test("expandGlobSync() accepts followSymlinks option set to true", function
     root: join(EG_OPTIONS.root!, "link"),
     followSymlinks: true,
   };
-  assertEquals(expandGlobSyncArray("*", options), ["abc"]);
+  assertEquals(expandGlobSyncArray("*", options), ["abc", "broken-link"]);
 });
 
 Deno.test("expandGlob() accepts followSymlinks option set to true with canonicalize", async function () {
@@ -331,6 +337,36 @@ Deno.test("expandGlobSync() accepts followSymlinks option set to true without ca
     expandGlobSyncArray("**/abc", options),
     ["abc", join("link", "abc"), join("subdir", "abc")],
   );
+});
+
+Deno.test("expandGlob() ignores broken symlinks when includeSymlinks is false", async function () {
+  const options = {
+    ...EG_OPTIONS,
+    includeSymlinks: false,
+    followSymlinks: true,
+  };
+  assertEquals(await expandGlobArray("*", options), [
+    "a[b]c",
+    "abc",
+    "abcdef",
+    "abcdefghi",
+    "subdir",
+  ]);
+});
+
+Deno.test("expandGlobSync() ignores broken symlinks when includeSymlinks is false", function () {
+  const options = {
+    ...EG_OPTIONS,
+    includeSymlinks: false,
+    followSymlinks: true,
+  };
+  assertEquals(expandGlobSyncArray("*", options), [
+    "a[b]c",
+    "abc",
+    "abcdef",
+    "abcdefghi",
+    "subdir",
+  ]);
 });
 
 Deno.test(

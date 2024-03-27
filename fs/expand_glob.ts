@@ -31,6 +31,13 @@ export interface ExpandGlobOptions extends Omit<GlobOptions, "os"> {
    */
   includeDirs?: boolean;
   /**
+   * Indicates whether symlink entries should be included or not.
+   *
+   * This will include any broken symlinks, when `followSymlinks` is `true`.
+   * @default {true}
+   */
+  includeSymlinks?: boolean;
+  /**
    * Whether to follow symbolic links.
    *
    * @default {false}
@@ -100,6 +107,7 @@ export async function* expandGlob(
     root,
     exclude = [],
     includeDirs = true,
+    includeSymlinks = true,
     extended = true,
     globstar = true,
     caseInsensitive,
@@ -144,9 +152,23 @@ export async function* expandGlob(
     walkInfo: WalkEntry,
     globSegment: string,
   ): AsyncIterableIterator<WalkEntry> {
-    if (!walkInfo.isDirectory) {
+    let isDir = walkInfo.isDirectory;
+    if (walkInfo.isSymlink) {
+      if (!followSymlinks) {
+        return;
+      }
+      try {
+        isDir = await Deno.stat(walkInfo.path).then((stat) => stat.isDirectory);
+      } catch (error) {
+        throwUnlessNotFound(error);
+      }
+    }
+
+    if (!isDir) {
       return;
-    } else if (globSegment === "..") {
+    }
+
+    if (globSegment === "..") {
       const parentPath = joinGlobs([walkInfo.path, ".."], globOptions);
       try {
         if (shouldInclude(parentPath)) {
@@ -160,6 +182,7 @@ export async function* expandGlob(
       return yield* walk(walkInfo.path, {
         skip: excludePatterns,
         maxDepth: globstar ? Infinity : 1,
+        includeSymlinks,
         followSymlinks,
         canonicalize,
       });
@@ -169,6 +192,7 @@ export async function* expandGlob(
       const walkEntry of walk(walkInfo.path, {
         maxDepth: 1,
         skip: excludePatterns,
+        includeSymlinks,
         followSymlinks,
       })
     ) {
@@ -226,6 +250,7 @@ export function* expandGlobSync(
     root,
     exclude = [],
     includeDirs = true,
+    includeSymlinks = true,
     extended = true,
     globstar = true,
     caseInsensitive,
@@ -270,9 +295,23 @@ export function* expandGlobSync(
     walkInfo: WalkEntry,
     globSegment: string,
   ): IterableIterator<WalkEntry> {
-    if (!walkInfo.isDirectory) {
+    let isDir = walkInfo.isDirectory;
+    if (walkInfo.isSymlink) {
+      if (!followSymlinks) {
+        return;
+      }
+      try {
+        isDir = Deno.statSync(walkInfo.path).isDirectory;
+      } catch (error) {
+        throwUnlessNotFound(error);
+      }
+    }
+
+    if (!isDir) {
       return;
-    } else if (globSegment === "..") {
+    }
+
+    if (globSegment === "..") {
       const parentPath = joinGlobs([walkInfo.path, ".."], globOptions);
       try {
         if (shouldInclude(parentPath)) {
@@ -286,6 +325,7 @@ export function* expandGlobSync(
       return yield* walkSync(walkInfo.path, {
         skip: excludePatterns,
         maxDepth: globstar ? Infinity : 1,
+        includeSymlinks,
         followSymlinks,
         canonicalize,
       });
@@ -295,6 +335,7 @@ export function* expandGlobSync(
       const walkEntry of walkSync(walkInfo.path, {
         maxDepth: 1,
         skip: excludePatterns,
+        includeSymlinks,
         followSymlinks,
       })
     ) {

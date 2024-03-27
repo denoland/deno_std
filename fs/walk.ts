@@ -69,7 +69,8 @@ export interface WalkOptions {
   includeDirs?: boolean;
   /**
    * Indicates whether symlink entries should be included or not.
-   * This option is meaningful only if `followSymlinks` is set to `false`.
+   *
+   * This will include any broken symlinks, when `followSymlinks` is `true`.
    * @default {true}
    */
   includeSymlinks?: boolean;
@@ -145,26 +146,36 @@ export async function* walk(
     return;
   }
   try {
-    for await (const entry of Deno.readDir(root)) {
-      let path = join(root, entry.name);
-
-      let { isSymlink, isDirectory } = entry;
+    for await (const item of Deno.readDir(root)) {
+      const entry = await createWalkEntry(join(root, item.name));
+      let { path, isSymlink, isDirectory } = entry;
 
       if (isSymlink) {
         if (!followSymlinks) {
           if (includeSymlinks && include(path, exts, match, skip)) {
-            yield { path, ...entry };
+            yield entry;
           }
           continue;
         }
-        const realPath = await Deno.realPath(path);
-        if (canonicalize) {
-          path = realPath;
+        try {
+          const realPath = await Deno.realPath(path);
+          if (canonicalize) {
+            path = realPath;
+          }
+          // Caveat emptor: don't assume |path| is not a symlink. realpath()
+          // resolves symlinks but another process can replace the file system
+          // entity with a different type of entity before we call lstat().
+          ({ isSymlink, isDirectory } = await Deno.lstat(realPath));
+        } catch (err) {
+          // Yield broken symlinks.
+          if (err instanceof Deno.errors.NotFound) {
+            if (includeSymlinks) {
+              yield entry;
+            }
+            continue;
+          }
+          throw err;
         }
-        // Caveat emptor: don't assume |path| is not a symlink. realpath()
-        // resolves symlinks but another process can replace the file system
-        // entity with a different type of entity before we call lstat().
-        ({ isSymlink, isDirectory } = await Deno.lstat(realPath));
       }
 
       if (isSymlink || isDirectory) {
@@ -179,7 +190,7 @@ export async function* walk(
           skip,
         });
       } else if (includeFiles && include(path, exts, match, skip)) {
-        yield { path, ...entry };
+        yield { ...entry, path };
       }
     }
   } catch (err) {
@@ -218,26 +229,36 @@ export function* walkSync(
   } catch (err) {
     throw wrapErrorWithPath(err, normalize(root));
   }
-  for (const entry of entries) {
-    let path = join(root, entry.name);
-
-    let { isSymlink, isDirectory } = entry;
+  for (const item of entries) {
+    const entry = createWalkEntrySync(join(root, item.name));
+    let { path, isSymlink, isDirectory } = entry;
 
     if (isSymlink) {
       if (!followSymlinks) {
         if (includeSymlinks && include(path, exts, match, skip)) {
-          yield { path, ...entry };
+          yield entry;
         }
         continue;
       }
-      const realPath = Deno.realPathSync(path);
-      if (canonicalize) {
-        path = realPath;
+      try {
+        const realPath = Deno.realPathSync(path);
+        if (canonicalize) {
+          path = realPath;
+        }
+        // Caveat emptor: don't assume |path| is not a symlink. realpath()
+        // resolves symlinks but another process can replace the file system
+        // entity with a different type of entity before we call lstat().
+        ({ isSymlink, isDirectory } = Deno.lstatSync(realPath));
+      } catch (err) {
+        // Yield broken symlinks.
+        if (err instanceof Deno.errors.NotFound) {
+          if (includeSymlinks) {
+            yield entry;
+          }
+          continue;
+        }
+        throw err;
       }
-      // Caveat emptor: don't assume |path| is not a symlink. realpath()
-      // resolves symlinks but another process can replace the file system
-      // entity with a different type of entity before we call lstat().
-      ({ isSymlink, isDirectory } = Deno.lstatSync(realPath));
     }
 
     if (isSymlink || isDirectory) {
@@ -252,7 +273,7 @@ export function* walkSync(
         skip,
       });
     } else if (includeFiles && include(path, exts, match, skip)) {
-      yield { path, ...entry };
+      yield { ...entry, path };
     }
   }
 }

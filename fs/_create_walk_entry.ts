@@ -12,6 +12,8 @@ import { toPathString } from "./_to_path_string.ts";
 export interface WalkEntry extends Deno.DirEntry {
   /** Full path of the entry. */
   path: string;
+  /** The target if it is a symbolic link */
+  destination?: string;
 }
 
 /** Create {@linkcode WalkEntry} for the `path` synchronously. */
@@ -19,13 +21,14 @@ export function createWalkEntrySync(path: string | URL): WalkEntry {
   path = toPathString(path);
   path = normalize(path);
   const name = basename(path);
-  const info = Deno.statSync(path);
+  const info = Deno.lstatSync(path);
   return {
     path,
     name,
     isFile: info.isFile,
     isDirectory: info.isDirectory,
     isSymlink: info.isSymlink,
+    destination: info.isSymlink ? Deno.readLinkSync(path) : undefined,
   };
 }
 
@@ -34,12 +37,13 @@ export async function createWalkEntry(path: string | URL): Promise<WalkEntry> {
   path = toPathString(path);
   path = normalize(path);
   const name = basename(path);
-  const info = await Deno.stat(path);
+  const info = await Deno.lstat(path);
   return {
     path,
     name,
     isFile: info.isFile,
     isDirectory: info.isDirectory,
     isSymlink: info.isSymlink,
+    destination: info.isSymlink ? Deno.readLinkSync(path) : undefined,
   };
 }
