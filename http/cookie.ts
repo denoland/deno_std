@@ -90,8 +90,8 @@ function toString(cookie: Cookie): string {
   }
   if (typeof cookie.maxAge === "number" && Number.isInteger(cookie.maxAge)) {
     assert(
-      cookie.maxAge >= 0,
-      "Max-Age must be an integer superior or equal to 0",
+      cookie.maxAge > 0,
+      "Max-Age must be an integer bigger than 0",
     );
     out.push(`Max-Age=${cookie.maxAge}`);
   }

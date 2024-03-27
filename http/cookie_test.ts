@@ -222,20 +222,22 @@ Deno.test({
       "Space=Cat; Secure; HttpOnly; Max-Age=2",
     );
 
-    headers = new Headers();
-    setCookie(headers, {
-      name: "Space",
-      value: "Cat",
-      httpOnly: true,
-      secure: true,
-      maxAge: 0,
-    });
-    assertEquals(
-      headers.get("Set-Cookie"),
-      "Space=Cat; Secure; HttpOnly; Max-Age=0",
-    );
-
     let error = false;
+    headers = new Headers();
+    try {
+      setCookie(headers, {
+        name: "Space",
+        value: "Cat",
+        httpOnly: true,
+        secure: true,
+        maxAge: 0,
+      });
+    } catch {
+      error = true;
+    }
+    assert(error);
+
+    error = false;
     headers = new Headers();
     try {
       setCookie(headers, {
