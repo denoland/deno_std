@@ -28,8 +28,11 @@ export async function toText(
       break;
     }
 
-    result += typeof value === "string" ? value : textDecoder.decode(value);
+    result += typeof value === "string"
+      ? value
+      : textDecoder.decode(value, { stream: true });
   }
 
+  textDecoder.decode();
   return result;
 }
