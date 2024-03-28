@@ -288,8 +288,10 @@ export * from "./format_range.ts";
 export * from "./equals.ts";
 export * from "./not_equals.ts";
 export * from "./greater_than.ts";
+export * from "./greater_than_range.ts";
 export * from "./greater_or_equal.ts";
 export * from "./less_than.ts";
+export * from "./less_than_range.ts";
 export * from "./less_or_equal.ts";
 
 export const SEMVER_SPEC_VERSION = "2.0.0";
