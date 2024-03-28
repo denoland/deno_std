@@ -120,9 +120,9 @@ export class Logger {
     let logMessage: string;
     if (msg instanceof Function) {
       fnResult = msg();
-      logMessage = this.asString(fnResult);
+      logMessage = this.#asString(fnResult);
     } else {
-      logMessage = this.asString(msg);
+      logMessage = this.#asString(msg);
     }
     const record: LogRecord = new LogRecord({
       msg: logMessage,
@@ -138,6 +138,12 @@ export class Logger {
     return msg instanceof Function ? fnResult : msg;
   }
 
+  #asString(data: unknown, isProperty = false): string {
+    return this.asString(data, isProperty);
+  }
+  /**
+   * @deprecated (will be removed in 0.220.0)
+   */
   asString(data: unknown, isProperty = false): string {
     if (typeof data === "string") {
       if (isProperty) return `"${data}"`;
@@ -156,7 +162,7 @@ export class Logger {
     } else if (typeof data === "object") {
       return `{${
         Object.entries(data)
-          .map(([k, v]) => `"${k}":${this.asString(v, true)}`)
+          .map(([k, v]) => `"${k}":${this.#asString(v, true)}`)
           .join(",")
       }}`;
     }

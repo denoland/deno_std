@@ -99,7 +99,7 @@ export class RotatingFileHandler extends FileHandler {
     const msgByteLength = this._encoder.encode(msg).byteLength + 1;
 
     if (this.#currentFileSize + msgByteLength > this.#maxBytes) {
-      this.rotateLogFiles();
+      this.#rotateLogFiles();
       this.#currentFileSize = 0;
     }
 
@@ -107,7 +107,12 @@ export class RotatingFileHandler extends FileHandler {
 
     this.#currentFileSize += msgByteLength;
   }
-
+  #rotateLogFiles() {
+    this.rotateLogFiles();
+  }
+  /**
+   * @deprecated (will be removed in 0.220.0)
+   */
   rotateLogFiles() {
     this.flush();
     this._file!.close();
