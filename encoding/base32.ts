@@ -29,15 +29,9 @@
 import { validateBinaryLike } from "./_util.ts";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-
-function readChar(char: string) {
-  const idx = ALPHABET.indexOf(char!);
-
-  if (idx === -1) {
-    throw new Error("Invalid character found: " + char);
-  }
-
-  return idx;
+const CHAR_CODES = new Map<number, number>();
+for (let i = 0; i < ALPHABET.length; i++) {
+  CHAR_CODES.set(ALPHABET.charCodeAt(i)!, i);
 }
 
 /**
@@ -60,22 +54,22 @@ function readChar(char: string) {
  * ```
  */
 export function decodeBase32(input: string): Uint8Array {
-  input = input.replaceAll("=", "");
+  // Remove padding characters
+  input = input.replace(/=/g, "");
 
   const length = input.length;
+  const output = new Uint8Array((length * 5 / 8) | 0);
 
   let bits = 0;
   let value = 0;
-
-  const output = new Uint8Array((length * 5 / 8) | 0);
+  let outputIndex = 0;
 
   for (let i = 0; i < length; i++) {
-    const char = input[i]!;
-    value = (value << 5) | readChar(char);
+    value = (value << 5) | CHAR_CODES.get(input.charCodeAt(i))!;
     bits += 5;
 
     if (bits >= 8) {
-      output[i >> 3] = (value >>> (bits - 8)) & 255;
+      output[outputIndex++] = (value >>> (bits - 8)) & 255;
       bits -= 8;
     }
   }
