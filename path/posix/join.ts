@@ -1,7 +1,6 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 // This module is browser compatible.
 
-import { assertPath } from "../_common/assert_path.ts";
 import { normalize } from "./normalize.ts";
 
 /**
@@ -25,7 +24,6 @@ export function join(...paths: string[]): string {
   let joined: string | undefined;
   for (let i = 0; i < paths.length; ++i) {
     const path = paths[i]!;
-    assertPath(path);
     if (path.length > 0) {
       if (!joined) joined = path;
       else joined += `/${path}`;

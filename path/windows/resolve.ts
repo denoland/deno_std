@@ -3,7 +3,6 @@
 
 import { CHAR_COLON } from "../_common/constants.ts";
 import { normalizeString } from "../_common/normalize_string.ts";
-import { assertPath } from "../_common/assert_path.ts";
 import { isPathSeparator, isWindowsDeviceRoot } from "./_util.ts";
 
 /**
@@ -54,8 +53,6 @@ export function resolve(...pathSegments: string[]): string {
         path = `${resolvedDevice}\\`;
       }
     }
-
-    assertPath(path);
 
     const len = path.length;
 

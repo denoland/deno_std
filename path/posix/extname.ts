@@ -2,7 +2,6 @@
 // This module is browser compatible.
 
 import { CHAR_DOT } from "../_common/constants.ts";
-import { assertPath } from "../_common/assert_path.ts";
 import { isPosixPathSeparator } from "./_util.ts";
 
 /**
@@ -22,8 +21,6 @@ import { isPosixPathSeparator } from "./_util.ts";
  * @returns The extension (ex. for `file.ts` returns `.ts`).
  */
 export function extname(path: string): string {
-  assertPath(path);
-
   let startDot = -1;
   let startPart = 0;
   let end = -1;

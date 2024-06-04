@@ -3,7 +3,6 @@
 
 import { CHAR_COLON, CHAR_DOT } from "../_common/constants.ts";
 import type { ParsedPath } from "../_interface.ts";
-import { assertPath } from "../_common/assert_path.ts";
 import { isPathSeparator, isWindowsDeviceRoot } from "./_util.ts";
 
 export type { ParsedPath } from "../_interface.ts";
@@ -30,8 +29,6 @@ export type { ParsedPath } from "../_interface.ts";
  * @returns The `ParsedPath` object.
  */
 export function parse(path: string): ParsedPath {
-  assertPath(path);
-
   const ret: ParsedPath = { root: "", dir: "", base: "", ext: "", name: "" };
 
   const len = path.length;

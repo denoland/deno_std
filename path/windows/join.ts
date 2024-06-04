@@ -2,7 +2,6 @@
 // This module is browser compatible.
 
 import { assert } from "@std/assert/assert";
-import { assertPath } from "../_common/assert_path.ts";
 import { isPathSeparator } from "./_util.ts";
 import { normalize } from "./normalize.ts";
 
@@ -28,7 +27,6 @@ export function join(...paths: string[]): string {
   let firstPart: string | null = null;
   for (let i = 0; i < paths.length; ++i) {
     const path = paths[i]!;
-    assertPath(path);
     if (path.length > 0) {
       if (joined === undefined) joined = firstPart = path;
       else joined += `\\${path}`;

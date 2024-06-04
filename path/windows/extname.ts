@@ -2,7 +2,6 @@
 // This module is browser compatible.
 
 import { CHAR_COLON, CHAR_DOT } from "../_common/constants.ts";
-import { assertPath } from "../_common/assert_path.ts";
 import { isPathSeparator, isWindowsDeviceRoot } from "./_util.ts";
 
 /**
@@ -21,8 +20,6 @@ import { isPathSeparator, isWindowsDeviceRoot } from "./_util.ts";
  * @returns The extension of the `path`.
  */
 export function extname(path: string): string {
-  assertPath(path);
-
   let start = 0;
   let startDot = -1;
   let startPart = 0;

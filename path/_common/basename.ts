@@ -1,8 +1,6 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 // This module is browser compatible.
 
-import { assertPath } from "./assert_path.ts";
-
 export function stripSuffix(name: string, suffix: string): string {
   if (suffix.length >= name.length) {
     return name;
@@ -43,7 +41,6 @@ export function lastPathSegment(
 }
 
 export function assertArgs(path: string, suffix: string) {
-  assertPath(path);
   if (path.length === 0) return path;
   if (typeof suffix !== "string") {
     throw new TypeError(
