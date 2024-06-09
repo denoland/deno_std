@@ -13,7 +13,7 @@
     "graphviz": "npm:node-graphviz@^0.1.1",
 
     "@std/archive": "jsr:@std/archive@^0.224.1",
-    "@std/assert": "jsr:@std/assert@1.0.0-rc.1",
+    "@std/assert": "jsr:@std/assert@1.0.0",
     "@std/async": "jsr:@std/async@^0.224.2",
     "@std/bytes": "jsr:@std/bytes@^1.0.0-rc.3",
     "@std/cli": "jsr:@std/cli@^0.224.6",
