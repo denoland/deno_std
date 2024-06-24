@@ -49,6 +49,13 @@ This is the
 for this codebase. It contains settings and tasks that apply to the codebase as
 a whole.
 
+### `import_map.json`
+
+This is the [import map](https://github.com/WICG/import-maps) for the entire
+codebase. This is not the import map used to publish packages to JSR. Rather,
+this import map should only be used for repositories that use `deno_std` as a
+Git submodule to simplify imports. E.g. The Deno runtime repo.
+
 ## Dependency Graph
 
 <img src="./dependency_graph.svg">
