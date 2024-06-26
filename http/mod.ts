@@ -66,3 +66,4 @@ export * from "./signed_cookie.ts";
 export * from "./server_sent_event_stream.ts";
 export * from "./user_agent.ts";
 export * from "./file_server.ts";
+export * from "./header.ts";
