@@ -18,4 +18,6 @@
 export * from "./parse_args.ts";
 export * from "./prompt_secret.ts";
 export * from "./spinner.ts";
+export * from "./parse.ts";
+export * from "./types.ts";
 export * from "./unicode_width.ts";
