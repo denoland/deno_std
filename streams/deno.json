@@ -11,6 +11,7 @@
     "./limited-bytes-transform-stream": "./limited_bytes_transform_stream.ts",
     "./limited-transform-stream": "./limited_transform_stream.ts",
     "./merge-readable-streams": "./merge_readable_streams.ts",
+    "./fixed-chunk-stream": "./fixed_chunk_stream.ts",
     "./text-delimiter-stream": "./text_delimiter_stream.ts",
     "./text-line-stream": "./text_line_stream.ts",
     "./to-array-buffer": "./to_array_buffer.ts",

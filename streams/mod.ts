@@ -26,6 +26,7 @@ export * from "./early_zip_readable_streams.ts";
 export * from "./limited_bytes_transform_stream.ts";
 export * from "./limited_transform_stream.ts";
 export * from "./merge_readable_streams.ts";
+export * from "./fixed_chunk_stream.ts";
 export * from "./text_delimiter_stream.ts";
 export * from "./text_line_stream.ts";
 export * from "./to_array_buffer.ts";
