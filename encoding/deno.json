@@ -5,6 +5,7 @@
     ".": "./mod.ts",
     "./ascii85": "./ascii85.ts",
     "./base32": "./base32.ts",
+    "./base32hex": "./base32hex.ts",
     "./base58": "./base58.ts",
     "./base64": "./base64.ts",
     "./base64url": "./base64url.ts",

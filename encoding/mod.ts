@@ -17,6 +17,7 @@
 
 export * from "./ascii85.ts";
 export * from "./base32.ts";
+export * from "./base32hex.ts";
 export * from "./base58.ts";
 export * from "./base64.ts";
 export * from "./base64url.ts";
