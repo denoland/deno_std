@@ -1,26 +1,59 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 // This module is browser compatible.
 
-// Keep this up-to-date with Deno.build.os
-/**
- * Operating system type, equivalent to the type of
- * {@linkcode https://deno.land/api?s=Deno.build | Deno.build.os}.
- */
-type OSType =
-  | "darwin"
-  | "linux"
-  | "windows"
-  | "freebsd"
-  | "netbsd"
-  | "aix"
-  | "solaris"
-  | "illumos"
-  | "android";
+export const isWindows: boolean = getIsWindows() === true;
 
-function getOsType(): OSType {
-  // deno-lint-ignore no-explicit-any
-  return (globalThis as any).Deno?.build.os ||
-    (navigator.userAgent.includes("Win") ? "windows" : "linux");
+function getIsWindows(): boolean | undefined {
+  return (
+    getIsWindowsOnDeno() || getIsWindowsOnBrowser() || getIsWindowsOnNodeOrBun()
+  );
 }
 
-export const isWindows: boolean = getOsType() === "windows";
+/**
+ * @returns whether the os is windows or undefined if not running
+ * in a deno runtime, undefined if not a deno runtime.
+ */
+function getIsWindowsOnDeno(): boolean | undefined {
+  // deno-lint-ignore no-explicit-any
+  const { Deno } = globalThis as any;
+  if (typeof Deno?.build?.os === "string") {
+    return Deno.build.os === "windows";
+  }
+}
+
+/**
+ * @returns whether the os is windows or undefined if not running
+ * in a web browser, undefined if not a web browser
+ */
+function getIsWindowsOnBrowser(): boolean | undefined {
+  // deno-lint-ignore no-explicit-any
+  const { navigator } = globalThis as any;
+
+  return containsWindows(navigator?.userAgent);
+}
+
+declare const process: { platform?: string } | undefined;
+
+/**
+ * according to documentation node's os module is implemented
+ * in bun as well.
+ * {@link https://bun.sh/docs/runtime/nodejs-apis#node-os}
+ *
+ * @returns whether the os is windows or undefined if not running
+ * on node or bun runtime
+ */
+function getIsWindowsOnNodeOrBun(): boolean | undefined {
+  try {
+    return process?.platform === "win32";
+  } catch {
+    return undefined;
+  }
+}
+
+function containsWindows(s?: string): boolean | undefined {
+  if (typeof s === "string") {
+    return s.toUpperCase().includes("WINDOWS");
+  } else {
+    return undefined;
+  }
+}
