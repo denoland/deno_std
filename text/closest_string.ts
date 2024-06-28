@@ -1,9 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 // This module is browser compatible.
+import type { CompareSimilarityOptions } from "./compare_similarity.ts";
 import { levenshteinDistance } from "./levenshtein_distance.ts";
 
-// NOTE: this metric may change in future versions (e.g. better than levenshteinDistance)
-const getWordDistance = levenshteinDistance;
+/** Options for {@linkcode closestString}. */
+export interface ClosestStringOptions extends CompareSimilarityOptions {}
 
 /**
  * The the most similar string from an array of strings.
@@ -33,16 +34,14 @@ const getWordDistance = levenshteinDistance;
 export function closestString(
   givenWord: string,
   possibleWords: string[],
-  options?: {
-    caseSensitive?: boolean;
-  },
+  options?: ClosestStringOptions,
 ): string {
   if (possibleWords.length === 0) {
     throw new TypeError(
       "When using closestString(), the possibleWords array must contain at least one word",
     );
   }
-  const { caseSensitive } = { ...options };
+  const { caseSensitive, distanceFn = levenshteinDistance } = { ...options };
 
   if (!caseSensitive) {
     givenWord = givenWord.toLowerCase();
@@ -52,13 +51,12 @@ export function closestString(
   let closestStringDistance = Infinity;
   for (const each of possibleWords) {
     const distance = caseSensitive
-      ? getWordDistance(givenWord, each)
-      : getWordDistance(givenWord, each.toLowerCase());
+      ? distanceFn(givenWord, each)
+      : distanceFn(givenWord, each.toLowerCase());
     if (distance < closestStringDistance) {
       nearestWord = each;
       closestStringDistance = distance;
     }
   }
-  // this distance metric could be swapped/improved in the future
   return nearestWord;
 }
