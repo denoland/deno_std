@@ -20,7 +20,7 @@
     "@std/collections": "jsr:@std/collections@^1.0.1",
     "@std/crypto": "jsr:@std/crypto@^1.0.0-rc.1",
     "@std/csv": "jsr:@std/csv@^1.0.0-rc.1",
-    "@std/data-structures": "jsr:@std/data-structures@^1.0.0-rc.1",
+    "@std/data-structures": "jsr:@std/data-structures@^1.0.0",
     "@std/datetime": "jsr:@std/datetime@^0.224.1",
     "@std/dotenv": "jsr:@std/dotenv@^0.224.1",
     "@std/encoding": "jsr:@std/encoding@1.0.0-rc.2",
