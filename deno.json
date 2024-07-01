@@ -29,7 +29,7 @@
     "@std/front-matter": "jsr:@std/front-matter@^0.224.2",
     "@std/fs": "jsr:@std/fs@^1.0.0-rc.2",
     "@std/html": "jsr:@std/html@^1.0.0-rc.1",
-    "@std/http": "jsr:@std/http@^1.0.0-rc.1",
+    "@std/http": "jsr:@std/http@^1.0.0",
     "@std/ini": "jsr:@std/ini@^0.225.1",
     "@std/internal": "jsr:@std/internal@^1.0.0",
     "@std/io": "jsr:@std/io@^0.224.2",
