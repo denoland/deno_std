@@ -34,7 +34,7 @@
     "@std/internal": "jsr:@std/internal@^1.0.0",
     "@std/io": "jsr:@std/io@^0.224.2",
     "@std/json": "jsr:@std/json@^1.0.0-rc.1",
-    "@std/jsonc": "jsr:@std/jsonc@^1.0.0-rc.1",
+    "@std/jsonc": "jsr:@std/jsonc@^1.0.0",
     "@std/log": "jsr:@std/log@^0.224.3",
     "@std/media-types": "jsr:@std/media-types@^1.0.1",
     "@std/msgpack": "jsr:@std/msgpack@^1.0.0-rc.1",
