@@ -46,7 +46,7 @@
     "@std/testing": "jsr:@std/testing@^1.0.0-rc.1",
     "@std/text": "jsr:@std/text@^1.0.0-rc.1",
     "@std/toml": "jsr:@std/toml@^1.0.0-rc.2",
-    "@std/ulid": "jsr:@std/ulid@^1.0.0-rc.2",
+    "@std/ulid": "jsr:@std/ulid@^1.0.0",
     "@std/url": "jsr:@std/url@^1.0.0-rc.1",
     "@std/uuid": "jsr:@std/uuid@1.0.0-rc.1",
     "@std/webgpu": "jsr:@std/webgpu@^0.224.4",
