@@ -37,7 +37,7 @@
     "@std/jsonc": "jsr:@std/jsonc@^1.0.0-rc.1",
     "@std/log": "jsr:@std/log@^0.224.3",
     "@std/media-types": "jsr:@std/media-types@^1.0.1",
-    "@std/msgpack": "jsr:@std/msgpack@^1.0.0-rc.1",
+    "@std/msgpack": "jsr:@std/msgpack@^1.0.0",
     "@std/net": "jsr:@std/net@^0.224.3",
     "@std/path": "jsr:@std/path@1.0.0-rc.2",
     "@std/regexp": "jsr:@std/regexp@^1.0.0-rc.1",
