@@ -14,7 +14,7 @@
 
     "@std/archive": "jsr:@std/archive@^0.224.2",
     "@std/assert": "jsr:@std/assert@1.0.0-rc.2",
-    "@std/async": "jsr:@std/async@^1.0.0-rc.2",
+    "@std/async": "jsr:@std/async@^1.0.0",
     "@std/bytes": "jsr:@std/bytes@^1.0.0-rc.3",
     "@std/cli": "jsr:@std/cli@^1.0.0-rc.2",
     "@std/collections": "jsr:@std/collections@^1.0.1",
