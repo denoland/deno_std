@@ -25,6 +25,7 @@
  * @module
  */
 
+export * from "./bidirectional_map.ts";
 export * from "./binary_heap.ts";
 export * from "./binary_search_tree.ts";
 export * from "./comparators.ts";
