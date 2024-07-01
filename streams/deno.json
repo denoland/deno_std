@@ -16,6 +16,7 @@
     "./to-array-buffer": "./to_array_buffer.ts",
     "./to-blob": "./to_blob.ts",
     "./to-json": "./to_json.ts",
+    "./to-lines": "./to_lines.ts",
     "./to-text": "./to_text.ts",
     "./to-transform-stream": "./to_transform_stream.ts",
     "./zip-readable-streams": "./zip_readable_streams.ts"
