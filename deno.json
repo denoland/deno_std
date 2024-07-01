@@ -27,7 +27,7 @@
     "@std/expect": "jsr:@std/expect@^0.224.5",
     "@std/fmt": "jsr:@std/fmt@^0.225.4",
     "@std/front-matter": "jsr:@std/front-matter@^0.224.2",
-    "@std/fs": "jsr:@std/fs@^1.0.0-rc.2",
+    "@std/fs": "jsr:@std/fs@^1.0.0",
     "@std/html": "jsr:@std/html@^1.0.0-rc.1",
     "@std/http": "jsr:@std/http@^1.0.0-rc.1",
     "@std/ini": "jsr:@std/ini@^0.225.1",
