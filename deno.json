@@ -43,7 +43,7 @@
     "@std/regexp": "jsr:@std/regexp@^1.0.0-rc.1",
     "@std/semver": "jsr:@std/semver@^1.0.0-rc.1",
     "@std/streams": "jsr:@std/streams@^1.0.0-rc.1",
-    "@std/testing": "jsr:@std/testing@^1.0.0-rc.1",
+    "@std/testing": "jsr:@std/testing@^1.0.0",
     "@std/text": "jsr:@std/text@^1.0.0-rc.1",
     "@std/toml": "jsr:@std/toml@^1.0.0-rc.2",
     "@std/ulid": "jsr:@std/ulid@^1.0.0-rc.2",
