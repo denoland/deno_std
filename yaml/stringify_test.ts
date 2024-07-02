@@ -77,11 +77,57 @@ Deno.test({
 });
 
 Deno.test({
+  name: "stringify() serializes integers",
+  fn() {
+    assertEquals(stringify(42), "42\n");
+    assertEquals(stringify(-42), "-42\n");
+
+    // binary, octal, and hexadecimal can be specified in styles options
+    assertEquals(
+      stringify(42, { styles: { "!!int": "binary" } }),
+      "0b101010\n",
+    );
+    assertEquals(
+      stringify(42, { styles: { "!!int": "bin" } }),
+      "0b101010\n",
+    );
+    assertEquals(
+      stringify(42, { styles: { "!!int": 2 } }),
+      "0b101010\n",
+    );
+    assertEquals(
+      stringify(42, { styles: { "!!int": "octal" } }),
+      "052\n",
+    );
+    assertEquals(
+      stringify(42, { styles: { "!!int": "oct" } }),
+      "052\n",
+    );
+    assertEquals(
+      stringify(42, { styles: { "!!int": 8 } }),
+      "052\n",
+    );
+    assertEquals(
+      stringify(42, { styles: { "!!int": "hexadecimal" } }),
+      "0x2A\n",
+    );
+    assertEquals(
+      stringify(42, { styles: { "!!int": "hex" } }),
+      "0x2A\n",
+    );
+    assertEquals(
+      stringify(42, { styles: { "!!int": 16 } }),
+      "0x2A\n",
+    );
+  },
+});
+
+Deno.test({
   name: "stringify() serializes boolean values",
   fn() {
     assertEquals(stringify([true, false]), "- true\n- false\n");
 
-    // casing can be controlled with style options
+    // casing can be controlled with styles options
     assertEquals(
       stringify([true, false], { styles: { "!!bool": "camelcase" } }),
       "- True\n- False\n",

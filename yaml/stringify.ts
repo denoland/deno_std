@@ -6,6 +6,9 @@
 
 import { dump } from "./_dumper/dumper.ts";
 import { SCHEMA_MAP } from "./_schema.ts";
+import type { StyleVariant } from "./_type.ts";
+
+export type { StyleVariant };
 
 /**
  * The option for strinigfy.
@@ -26,7 +29,7 @@ export type StringifyOptions = {
    */
   flowLevel?: number;
   /** Each tag may have own set of styles.	- "tag" => "style" map. */
-  styles?: Record<string, "lowercase" | "uppercase" | "camelcase" | "decimal">;
+  styles?: Record<string, StyleVariant>;
   /** Name of the schema to use. */
   schema?: "core" | "default" | "failsafe" | "json" | "extended";
   /**

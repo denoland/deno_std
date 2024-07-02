@@ -7,7 +7,25 @@
 import type { Any, ArrayObject } from "./_utils.ts";
 
 export type KindType = "sequence" | "scalar" | "mapping";
-export type StyleVariant = "lowercase" | "uppercase" | "camelcase" | "decimal";
+/**
+ * The style variation for `styles` option of {@linkcode stringify}
+ */
+export type StyleVariant =
+  | "lowercase"
+  | "uppercase"
+  | "camelcase"
+  | "decimal"
+  | "dec"
+  | 10
+  | "binary"
+  | "bin"
+  | 2
+  | "octal"
+  | "oct"
+  | 8
+  | "hexadecimal"
+  | "hex"
+  | 16;
 export type RepresentFn = (data: Any, style?: StyleVariant) => Any;
 
 interface TypeOptions {
@@ -19,6 +37,20 @@ interface TypeOptions {
   represent?: RepresentFn | ArrayObject<RepresentFn>;
   defaultStyle?: StyleVariant;
   styleAliases?: ArrayObject;
+}
+
+function compileStyleAliases(map?: Record<string, unknown[] | null>) {
+  const result = {} as Record<string, string>;
+
+  if (map) {
+    Object.keys(map).forEach((style) => {
+      map[style]!.forEach((alias) => {
+        result[String(alias)] = style;
+      });
+    });
+  }
+
+  return result;
 }
 
 function checkTagFormat(tag: string): string {
@@ -45,7 +77,7 @@ export class Type {
       this.predicate = options.predicate;
       this.represent = options.represent;
       this.defaultStyle = options.defaultStyle;
-      this.styleAliases = options.styleAliases;
+      this.styleAliases = compileStyleAliases(options.styleAliases);
     }
   }
   resolve: (data?: Any) => boolean = (): boolean => true;
