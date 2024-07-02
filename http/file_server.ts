@@ -40,7 +40,7 @@ import { relative } from "@std/path/relative";
 import { resolve } from "@std/path/resolve";
 import { SEPARATOR_PATTERN } from "@std/path/constants";
 import { contentType } from "@std/media-types/content-type";
-import { calculate, ifNoneMatch } from "./etag.ts";
+import { eTag, ifNoneMatch } from "./etag.ts";
 import {
   isRedirectStatus,
   STATUS_CODE,
@@ -67,7 +67,7 @@ const DENO_DEPLOYMENT_ID = ENV_PERM_STATUS === "granted"
   ? Deno.env.get("DENO_DEPLOYMENT_ID")
   : undefined;
 const HASHED_DENO_DEPLOYMENT_ID = DENO_DEPLOYMENT_ID
-  ? calculate(DENO_DEPLOYMENT_ID, { weak: true })
+  ? eTag(DENO_DEPLOYMENT_ID, { weak: true })
   : undefined;
 
 function modeToString(isDir: boolean, maybeMode: number | null): string {
@@ -190,7 +190,7 @@ export async function serveFile(
   }
 
   const etag = fileInfo.mtime
-    ? await calculate(fileInfo, { algorithm })
+    ? await eTag(fileInfo, { algorithm })
     : await HASHED_DENO_DEPLOYMENT_ID;
 
   // Set last modified header if last modification timestamp is available
