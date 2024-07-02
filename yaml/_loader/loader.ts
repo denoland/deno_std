@@ -366,7 +366,6 @@ function storeMappingPair(
     }
   } else {
     if (
-      !state.json &&
       !hasOwn(overridableKeys, keyNode) &&
       hasOwn(result, keyNode)
     ) {

@@ -12,8 +12,6 @@ import type { Any, ArrayObject } from "../_utils.ts";
 export interface LoaderStateOptions {
   /** specifies a schema to use. */
   schema?: Schema;
-  /** compatibility with JSON.parse behaviour. */
-  json?: boolean;
   /** function to call on warning messages. */
   onWarning?(this: null, e?: YamlError): void;
 }
@@ -30,7 +28,6 @@ export class LoaderState extends State {
   position = 0;
   line = 0;
   onWarning?: (...args: Any[]) => void;
-  json: boolean;
   implicitTypes: Type[];
   typeMap: TypeMap;
 
@@ -48,13 +45,11 @@ export class LoaderState extends State {
     {
       schema,
       onWarning,
-      json = false,
     }: LoaderStateOptions,
   ) {
     super(schema);
     this.input = input;
     this.onWarning = onWarning;
-    this.json = json;
 
     this.implicitTypes = (this.schema as Schema).compiledImplicit;
     this.typeMap = (this.schema as Schema).compiledTypeMap;
