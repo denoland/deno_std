@@ -45,12 +45,6 @@ export type StringifyOptions = {
    */
   noRefs?: boolean;
   /**
-   * If true don't try to be compatible with older yaml versions.
-   * Currently: don't quote "yes", "no" and so on,
-   * as required for YAML 1.1 (default: false)
-   */
-  noCompatMode?: boolean;
-  /**
    * If true flow sequences will be condensed, omitting the
    * space between `key: value` or `a, b`. Eg. `'[a,b]'` or `{a:{b:c}}`.
    * Can be useful when using yaml for pretty URL query params
