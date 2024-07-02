@@ -41,7 +41,7 @@
     "@std/net": "jsr:@std/net@^0.224.3",
     "@std/path": "jsr:@std/path@1.0.0-rc.2",
     "@std/regexp": "jsr:@std/regexp@^1.0.0-rc.1",
-    "@std/semver": "jsr:@std/semver@^1.0.0-rc.1",
+    "@std/semver": "jsr:@std/semver@^1.0.0",
     "@std/streams": "jsr:@std/streams@^1.0.0-rc.1",
     "@std/testing": "jsr:@std/testing@^1.0.0-rc.1",
     "@std/text": "jsr:@std/text@^1.0.0-rc.1",
