@@ -68,9 +68,16 @@ export interface BufferBytesOptions {
 export class Buffer {
   #buf: Uint8Array; // contents are the bytes buf[off : len(buf)]
   #off = 0; // read at buf[off], write at buf[buf.byteLength]
+  #startedPromise = Promise.withResolvers();
+  #startedBool = false;
   #readable: ReadableStream<Uint8Array> = new ReadableStream({
     type: "bytes",
-    pull: (controller) => {
+    pull: async (controller) => {
+      if (!this.#startedBool) {
+        await this.#startedPromise.promise;
+        this.#startedBool = true;
+      }
+
       const view = new Uint8Array(controller.byobRequest!.view!.buffer);
       if (this.empty()) {
         // Buffer is empty, reset to recover space.
@@ -81,7 +88,9 @@ export class Buffer {
       }
       const nread = copy(this.#buf.subarray(this.#off), view);
       this.#off += nread;
-      controller.byobRequest!.respond(nread);
+      if (nread !== 0) {
+        controller.byobRequest!.respond(nread);
+      }
     },
     autoAllocateChunkSize: DEFAULT_CHUNK_SIZE,
   });
@@ -107,6 +116,7 @@ export class Buffer {
     write: (chunk) => {
       const m = this.#grow(chunk.byteLength);
       copy(chunk, this.#buf, m);
+      this.#startedPromise.resolve(undefined);
     },
   });
 
@@ -156,7 +166,13 @@ export class Buffer {
    * ```
    */
   constructor(ab?: ArrayBufferLike | ArrayLike<number>) {
-    this.#buf = ab === undefined ? new Uint8Array(0) : new Uint8Array(ab);
+    if (ab === undefined) {
+      this.#buf = new Uint8Array(0);
+    } else {
+      this.#buf = new Uint8Array(ab);
+      this.#startedBool = true;
+      this.#startedPromise.resolve(undefined);
+    }
   }
 
   /**
