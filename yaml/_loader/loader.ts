@@ -1565,7 +1565,7 @@ function composeNode(
   return state.tag !== null || state.anchor !== null || hasContent;
 }
 
-function readDocument(state: LoaderState) {
+function* readDocument(state: LoaderState) {
   const documentStart = state.position;
   let position: number;
   let directiveName: string;
@@ -1669,7 +1669,7 @@ function readDocument(state: LoaderState) {
     throwWarning(state, "non-ASCII line breaks are interpreted as content");
   }
 
-  state.documents.push(state.result);
+  yield state.result;
 
   if (state.position === state.lineStart && testDocumentSeparator(state)) {
     if (state.input.charCodeAt(state.position) === DOT) {
@@ -1684,6 +1684,12 @@ function readDocument(state: LoaderState) {
       state,
       "end of the stream or a document separator is expected",
     );
+  }
+}
+
+function* readDocuments(state: LoaderState) {
+  while (state.position < state.length - 1) {
+    yield* readDocument(state);
   }
 }
 
@@ -1716,31 +1722,23 @@ export function loadDocuments(
   options: LoaderStateOptions = {},
 ): unknown[] {
   input = sanitizeInput(input);
-
   const state = new LoaderState(input, options);
-
-  while (state.input.charCodeAt(state.position) === SPACE) {
-    state.lineIndent += 1;
-    state.position += 1;
+  const documents = [];
+  for (const document of readDocuments(state)) {
+    documents.push(document);
   }
-
-  while (state.position < state.length - 1) {
-    readDocument(state);
-  }
-
-  return state.documents;
+  return documents;
 }
 
 export function load(input: string, options: LoaderStateOptions = {}): unknown {
-  const documents = loadDocuments(input, options);
-
-  if (documents.length === 0) {
-    return null;
+  input = sanitizeInput(input);
+  const state = new LoaderState(input, options);
+  const documentGenerator = readDocuments(state);
+  const document = documentGenerator.next().value;
+  if (!documentGenerator.next().done) {
+    throw new YamlError(
+      "expected a single document in the stream, but found more",
+    );
   }
-  if (documents.length === 1) {
-    return documents[0];
-  }
-  throw new YamlError(
-    "expected a single document in the stream, but found more",
-  );
+  return document ?? null;
 }

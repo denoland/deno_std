@@ -3,6 +3,7 @@
 // Copyright 2011-2015 by Vitaly Puzrin. All rights reserved. MIT license.
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
+import { SPACE } from "../_chars.ts";
 import type { YamlError } from "../_error.ts";
 import type { Schema, TypeMap } from "../_schema.ts";
 import { State } from "../_state.ts";
@@ -58,5 +59,10 @@ export class LoaderState extends State {
     this.implicitTypes = this.schema.compiledImplicit;
     this.typeMap = this.schema.compiledTypeMap;
     this.length = input.length;
+
+    while (this.input.charCodeAt(this.position) === SPACE) {
+      this.lineIndent += 1;
+      this.position += 1;
+    }
   }
 }
