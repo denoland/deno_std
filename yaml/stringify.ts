@@ -25,8 +25,8 @@ export type StringifyOptions = {
    */
   arrayIndent?: boolean;
   /**
-   * Do not throw on invalid types (like function in the safe schema)
-   * and skip pairs and single values with such types.
+   * Do not throw on invalid types (like function in the safe schema) and skip
+   * pairs and single values with such types.
    *
    * @default {false}
    */
