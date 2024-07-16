@@ -107,7 +107,7 @@ export type StringifyOptions = {
  *
  * @param data The data to serialize.
  * @param options The options for serialization.
- * @returns A YAML string.
+ * @returns A YAML string
  */
 export function stringify(
   data: unknown,
