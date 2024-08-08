@@ -3,6 +3,7 @@
   "version": "1.0.1",
   "exports": {
     ".": "./mod.ts",
+    "./bidirectional-map": "./bidirectional_map.ts",
     "./binary-heap": "./binary_heap.ts",
     "./binary-search-tree": "./binary_search_tree.ts",
     "./comparators": "./comparators.ts",
