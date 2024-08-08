@@ -40,6 +40,8 @@ import {
 import { readAll } from "@std/io/read-all";
 import type { Reader } from "@std/io/types";
 
+export type { Reader };
+
 /**
  * Extend TarMeta with the `linkName` property so that readers can access
  * symbolic link values without polluting the world of archive writers.
@@ -104,6 +106,26 @@ function parseHeader(buffer: Uint8Array): TarHeader {
  * > **UNSTABLE**: New API, yet to be vetted.
  *
  * @experimental
+ *
+ * @example Usage
+ * ```ts no-assert
+ * import { TarEntry } from "@std/archive/untar";
+ *
+ * const content = new TextEncoder().encode("hello tar world!");
+ * const reader = new Buffer(content);
+ * const tarMeta = {
+ *   fileName: "archive/",
+ *   fileSize: 0,
+ *   fileMode: 509,
+ *   mtime: 1591800767,
+ *   uid: 1001,
+ *   gid: 1001,
+ *   owner: "deno",
+ *   group: "deno",
+ *   type: "directory",
+ * };
+ * const tarEntry: TarEntry = new TarEntry(tarMeta, reader);
+ * ```
  */
 export interface TarEntry extends TarMetaWithLinkName {}
 
@@ -122,7 +144,12 @@ export class TarEntry implements Reader {
   #consumed = false;
   #entrySize: number;
 
-  /** Constructs a new instance. */
+  /**
+   * Constructs a new instance.
+   *
+   * @param meta The metadata of the entry.
+   * @param reader The reader to read the entry from.
+   */
   constructor(
     meta: TarMetaWithLinkName,
     reader: Reader | (Reader & Deno.Seeker),
@@ -137,7 +164,11 @@ export class TarEntry implements Reader {
     this.#entrySize = blocks * HEADER_LENGTH;
   }
 
-  /** Returns whether the entry has already been consumed. */
+  /**
+   * Returns whether the entry has already been consumed.
+   *
+   * @returns Whether the entry has already been consumed.
+   */
   get consumed(): boolean {
     return this.#consumed;
   }
@@ -149,6 +180,39 @@ export class TarEntry implements Reader {
    * all of `p` as scratch space during the call. If some data is available but
    * not `p.byteLength bytes`, read() conventionally resolves to what is available
    * instead of waiting for more.
+   *
+   * @param p The buffer to read the entry into.
+   * @returns The number of bytes read (`0 < n <= p.byteLength`) or `null` if
+   * there are no more bytes to read.
+   *
+   * @example Usage
+   * ```ts
+   * import { Buffer } from "@std/io/buffer";
+   * import { TarEntry } from "@std/archive/untar";
+   * import { assertEquals } from "@std/assert/equals";
+   *
+   * const text = "Hello, world!";
+   *
+   * const reader = new Buffer(new TextEncoder().encode(text));
+   * const tarMeta = {
+   *   fileName: "text",
+   *   fileSize: 0,
+   *   fileMode: 509,
+   *   mtime: 1591800767,
+   *   uid: 1001,
+   *   gid: 1001,
+   *   owner: "deno",
+   *   group: "deno",
+   *   type: "file",
+   * };
+   *
+   * const tarEntry: TarEntry = new TarEntry(tarMeta, reader);
+   * const p = new Uint8Array(1024);
+   * const n = await tarEntry.read(p);
+   * const result = new TextDecoder().decode(p.subarray(0, n));
+   *
+   * assertEquals(result, text);
+   * ```
    */
   async read(p: Uint8Array): Promise<number | null> {
     // Bytes left for entry
@@ -220,8 +284,8 @@ export class TarEntry implements Reader {
  * This utility does not support decompression which must be done before extracting
  * the files.
  *
- * @example
- * ```ts
+ * @example Usage
+ * ```ts no-eval
  * import { Untar } from "@std/archive/untar";
  * import { ensureFile } from "@std/fs/ensure-file";
  * import { ensureDir } from "@std/fs/ensure-dir";
@@ -257,7 +321,11 @@ export class Untar {
   #block: Uint8Array;
   #entry: TarEntry | undefined;
 
-  /** Constructs a new instance. */
+  /**
+   * Constructs a new instance.
+   *
+   * @param reader The reader to extract from.
+   */
   constructor(reader: Reader) {
     this.#reader = reader;
     this.#block = new Uint8Array(HEADER_LENGTH);
@@ -340,8 +408,29 @@ export class Untar {
   /**
    * Extract the next entry of the tar archive.
    *
-   * @returns A TarEntry with header metadata and a reader to the entry's
-   *          body, or null if there are no more entries to extract.
+   * @returns A TarEntry with header metadata and a reader to the entry's body,
+   * or null if there are no more entries to extract.
+   *
+   * @example Usage
+   * ```ts no-eval
+   * import { Tar, Untar } from "@std/archive";
+   *
+   * const fileName = "output.txt";
+   * const text = "hello tar world!";
+   *
+   * // create a tar archive
+   * const tar = new Tar();
+   * const content = new TextEncoder().encode(text);
+   * await tar.append(fileName, {
+   *   reader: new Buffer(content),
+   *   contentSize: content.byteLength,
+   * });
+   *
+   * // read data from a tar archive
+   * const untar = new Untar(tar.getReader());
+   * const result = await untar.extract();
+   * const untarText = new TextDecoder("utf-8").decode(await readAll(result));
+   * ```
    */
   async extract(): Promise<TarEntry | null> {
     if (this.#entry && !this.#entry.consumed) {
@@ -364,6 +453,32 @@ export class Untar {
    * Iterate over all entries of the tar archive.
    *
    * @yields A TarEntry with tar header metadata and a reader to the entry's body.
+   * @returns An async iterator.
+   *
+   * @example Usage
+   * ```ts no-eval
+   * import { Untar } from "@std/archive/untar";
+   * import { ensureFile } from "@std/fs/ensure-file";
+   * import { ensureDir } from "@std/fs/ensure-dir";
+   * import { copy } from "@std/io/copy";
+   *
+   * using reader = await Deno.open("./out.tar", { read: true });
+   * const untar = new Untar(reader);
+   *
+   * for await (const entry of untar) {
+   *   console.log(entry); // metadata
+   *
+   *   if (entry.type === "directory") {
+   *     await ensureDir(entry.fileName);
+   *     continue;
+   *   }
+   *
+   *   await ensureFile(entry.fileName);
+   *   using file = await Deno.open(entry.fileName, { write: true });
+   *   // <entry> is a reader.
+   *   await copy(entry, file);
+   * }
+   * ```
    */
   async *[Symbol.asyncIterator](): AsyncIterableIterator<TarEntry> {
     while (true) {

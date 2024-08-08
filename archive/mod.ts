@@ -34,7 +34,7 @@
  * archive file, while untar is the inverse utility to extract the files from an
  * archive.  Files are not compressed, only collected into the archive.
  *
- * ```ts
+ * ```ts no-eval
  * import { Tar } from "@std/archive/tar";
  * import { Buffer } from "@std/io/buffer";
  * import { copy } from "@std/io/copy";
