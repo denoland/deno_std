@@ -3,7 +3,9 @@
   "version": "0.225.0",
   "exports": {
     ".": "./mod.ts",
+    "./tar-stream": "./tar_stream.ts",
     "./tar": "./tar.ts",
+    "./untar-stream": "./untar_stream.ts",
     "./untar": "./untar.ts"
   }
 }
