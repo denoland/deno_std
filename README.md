@@ -24,6 +24,7 @@ documentation:
 | [assert](https://jsr.io/@std/assert)                   | [![JSR](https://jsr.io/badges/@std/assert)](https://jsr.io/@std/assert)                   |
 | [async](https://jsr.io/@std/async)                     | [![JSR](https://jsr.io/badges/@std/async)](https://jsr.io/@std/async)                     |
 | [bytes](https://jsr.io/@std/bytes)                     | [![JSR](https://jsr.io/badges/@std/bytes)](https://jsr.io/@std/bytes)                     |
+| [cache](https://jsr.io/@std/cache)                     | [![JSR](https://jsr.io/badges/@std/cache)](https://jsr.io/@std/cache)                     |
 | [cli](https://jsr.io/@std/cli)                         | [![JSR](https://jsr.io/badges/@std/cli)](https://jsr.io/@std/cli)                         |
 | [collections](https://jsr.io/@std/collections)         | [![JSR](https://jsr.io/badges/@std/collections)](https://jsr.io/@std/collections)         |
 | [crypto](https://jsr.io/@std/crypto)                   | [![JSR](https://jsr.io/badges/@std/crypto)](https://jsr.io/@std/crypto)                   |
