@@ -1,4 +1,6 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+import type { WriterSync } from "@std/io/types";
+export type { WriterSync };
 
 const encoder = new TextEncoder();
 
@@ -81,6 +83,12 @@ export interface SpinnerOptions {
    * This can be changed while the spinner is active.
    */
   color?: Color;
+  /**
+   * Stream to write the spinner to.
+   *
+   * @default {Deno.stderr}
+   */
+  stream?: WriterSync & { writable: WritableStream<Uint8Array> };
 }
 
 /**
@@ -135,6 +143,7 @@ export class Spinner {
   #color?: Color;
   #intervalId: number | undefined;
   #active = false;
+  #stream: WriterSync & { writable: WritableStream<Uint8Array> };
 
   /**
    * Creates a new spinner.
@@ -147,11 +156,13 @@ export class Spinner {
       message = "",
       interval = DEFAULT_INTERVAL,
       color,
+      stream = Deno.stderr,
     } = options ?? {};
     this.#spinner = spinner;
     this.message = message;
     this.#interval = interval;
     this.color = color;
+    this.#stream = stream;
   }
 
   /**
@@ -208,7 +219,7 @@ export class Spinner {
    * ```
    */
   start() {
-    if (this.#active || Deno.stdout.writable.locked) {
+    if (this.#active || this.#stream.writable.locked) {
       return;
     }
 
@@ -228,7 +239,7 @@ export class Spinner {
       const writeData = new Uint8Array(LINE_CLEAR.length + frame.length);
       writeData.set(LINE_CLEAR);
       writeData.set(frame, LINE_CLEAR.length);
-      Deno.stdout.writeSync(writeData);
+      this.#stream.writeSync(writeData);
       i = (i + 1) % this.#spinner.length;
     };
 
@@ -254,7 +265,7 @@ export class Spinner {
   stop() {
     if (this.#intervalId && this.#active) {
       clearInterval(this.#intervalId);
-      Deno.stdout.writeSync(LINE_CLEAR); // Clear the current line
+      this.#stream.writeSync(LINE_CLEAR); // Clear the current line
       this.#active = false;
     }
   }

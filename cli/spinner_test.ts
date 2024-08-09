@@ -18,7 +18,7 @@ async function spawnDeno(args: string[], opts?: Deno.CommandOptions) {
     ...opts,
   });
   const output = await cmd.output();
-  return decoder.decode(output.stdout);
+  return decoder.decode(output.stderr);
 }
 
 const normalizeString = (s: string) =>
