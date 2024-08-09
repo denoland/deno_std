@@ -71,7 +71,6 @@ const ENTRY_POINTS = [
   "../testing/types.ts",
   "../toml/mod.ts",
   "../ulid/mod.ts",
-  "../url/mod.ts",
   "../uuid/mod.ts",
   "../webgpu/mod.ts",
   "../yaml/mod.ts",
