@@ -6,6 +6,7 @@
     "./closest-string": "./closest_string.ts",
     "./compare-similarity": "./compare_similarity.ts",
     "./levenshtein-distance": "./levenshtein_distance.ts",
+    "./slugify": "./slugify.ts",
     "./to-camel-case": "./to_camel_case.ts",
     "./to-constant-case": "./to_constant_case.ts",
     "./to-kebab-case": "./to_kebab_case.ts",

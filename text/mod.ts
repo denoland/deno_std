@@ -28,3 +28,4 @@ export * from "./to_constant_case.ts";
 export * from "./to_kebab_case.ts";
 export * from "./to_pascal_case.ts";
 export * from "./to_snake_case.ts";
+export * from "./slugify.ts";
