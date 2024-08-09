@@ -11,7 +11,6 @@
     "npm:/typescript": "npm:typescript@5.4.4",
     "automation/": "https://raw.githubusercontent.com/denoland/automation/0.10.0/",
     "graphviz": "npm:node-graphviz@^0.1.1",
-
     "@std/archive": "jsr:@std/archive@^0.225.0",
     "@std/assert": "jsr:@std/assert@^1.0.2",
     "@std/async": "jsr:@std/async@^1.0.3",
@@ -122,6 +121,7 @@
     "./msgpack",
     "./net",
     "./path",
+    "./random",
     "./regexp",
     "./semver",
     "./streams",

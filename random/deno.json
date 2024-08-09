@@ -1,0 +1,12 @@
+{
+  "name": "@std/random",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./between": "./between.ts",
+    "./integer-between": "./integer_between.ts",
+    "./sample": "./sample.ts",
+    "./seeded-random": "./seeded_random.ts",
+    "./shuffle": "./shuffle.ts"
+  }
+}
