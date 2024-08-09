@@ -6,6 +6,8 @@ import { _serializeArgList } from "./_serialize_arg_list.ts";
 
 /**
  * A cache suitable for use with {@linkcode memoize}.
+ *
+ * @experimental
  */
 export type MemoizationCache<K, V> = {
   has: (key: K) => boolean;
@@ -16,6 +18,8 @@ export type MemoizationCache<K, V> = {
 
 /**
  * Options for {@linkcode memoize}.
+ *
+ * @experimental
  *
  * @typeParam Fn The type of the function to memoize.
  * @typeParam Key The type of the cache key.
@@ -59,6 +63,8 @@ export type MemoizeOptions<
 
 /**
  * Cache the results of a function based on its arguments.
+ *
+ * @experimental
  *
  * @typeParam Fn The type of the function to memoize.
  * @typeParam Key The type of the cache key.
