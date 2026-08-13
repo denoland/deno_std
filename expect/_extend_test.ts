@@ -2,11 +2,12 @@
 
 import { expect } from "./expect.ts";
 import type { Async, Expected, MatcherContext, Tester } from "./_types.ts";
-import { AssertionError, assertThrows } from "@std/assert";
+import { AssertionError, assertRejects, assertThrows } from "@std/assert";
 
 declare module "./_types.ts" {
   interface Expected {
     toEqualBook: (expected: unknown) => ExtendMatchResult;
+    toBeResolved: () => Promise<ExtendMatchResult>;
   }
 }
 
@@ -76,6 +77,24 @@ expect.extend({
       message: () =>
         `Expected Book object: ${expected.name}. Actual Book object: ${actual.name}`,
       pass: result,
+    };
+  },
+  async toBeResolved(context) {
+    if (!(context.value instanceof Promise)) {
+      throw new TypeError("Expected value to be a promise");
+    }
+    const test = new Promise<void>((resolve) => setTimeout(resolve, 0));
+    const status = await Promise.race([
+      context.value.then(() => "resolved"),
+      test.then(() => "pending"),
+    ]);
+    await test;
+    return {
+      message: () =>
+        `Expected promise to be ${
+          { pending: "resolved", resolved: "pending" }[status]
+        } (got ${status})`,
+      pass: status === "resolved",
     };
   },
 });
@@ -157,4 +176,21 @@ Deno.test("expect.extend() example is valid", async () => {
   // Regular matchers will still be available
   myexpect("foo").not.toBeNull();
   myexpect.anything;
+});
+
+Deno.test("expect.extend() api test case", async () => {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  await expect(promise).not.toBeResolved();
+  await assertRejects(
+    () => expect(promise).toBeResolved(),
+    AssertionError,
+    "Expected promise to be resolved (got pending)",
+  );
+  resolve();
+  await expect(promise).toBeResolved();
+  await assertRejects(
+    () => expect(promise).not.toBeResolved(),
+    AssertionError,
+    "Expected promise to be pending (got resolved)",
+  );
 });

@@ -219,13 +219,29 @@ export function expect<T extends Expected = Expected>(
             context.isNot = true;
           }
           if (name in extendMatchers) {
-            const result = matcher(context, ...args) as ExtendMatchResult;
-            if (context.isNot) {
-              if (result.pass) {
+            const result = matcher(context, ...args) as
+              | ExtendMatchResult
+              | Promise<ExtendMatchResult>;
+
+            if (result instanceof Promise) {
+              return result.then((result) => {
+                if (context.isNot) {
+                  if (result.pass) {
+                    throw new AssertionError(result.message());
+                  }
+                } else if (!result.pass) {
+                  throw new AssertionError(result.message());
+                }
+                emitAssertionTrigger();
+              });
+            } else {
+              if (context.isNot) {
+                if (result.pass) {
+                  throw new AssertionError(result.message());
+                }
+              } else if (!result.pass) {
                 throw new AssertionError(result.message());
               }
-            } else if (!result.pass) {
-              throw new AssertionError(result.message());
             }
           } else {
             matcher(context, ...args);

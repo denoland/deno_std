@@ -12,7 +12,7 @@ export interface MatcherContext {
 export type Matcher = (
   context: MatcherContext,
   ...args: any[]
-) => MatchResult | ExtendMatchResult;
+) => MatchResult | ExtendMatchResult | Promise<ExtendMatchResult>;
 
 export type Matchers = {
   [key: string]: Matcher;
