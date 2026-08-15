@@ -26,10 +26,6 @@
  * Provides error classes for each HTTP error status code as well as utility
  * functions for handling HTTP errors in a structured way.
  *
- * ## Methods
- *
- * Provides helper functions and types to work with HTTP method strings safely.
- *
  * ## Negotiation
  *
  * A set of functions which can be used to negotiate content types, encodings and

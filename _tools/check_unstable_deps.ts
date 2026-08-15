@@ -12,7 +12,7 @@ import { getEntrypoints, getPackagesDenoJsons, resolve } from "./utils.ts";
 import { partition } from "@std/collections/partition";
 import { createGraph } from "@deno/graph";
 
-// These 2 paths are known to include unstable module (net/unstable_get_network_address.ts)
+// These paths depend on @std/net/unstable-get-network-address via file_server.ts
 // and should be ignored.
 const EXCEPTIONS = [
   "@std/http/file-server",

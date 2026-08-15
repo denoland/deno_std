@@ -53,8 +53,6 @@ import denoConfig from "./deno.json" with { type: "json" };
 import { format as formatBytes } from "@std/fmt/bytes";
 import { getNetworkAddress } from "@std/net/unstable-get-network-address";
 import { escape } from "@std/html/entities";
-import { HEADER } from "./unstable_header.ts";
-import { METHOD } from "./unstable_method.ts";
 import { html } from "@std/html/unstable-html";
 
 interface EntryInfo {
@@ -187,7 +185,7 @@ export async function serveFile(
 ): Promise<Response> {
   await req.body?.cancel();
 
-  if (req.method !== METHOD.Get && req.method !== METHOD.Head) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
     return createStandardResponse(STATUS_CODE.MethodNotAllowed);
   }
 
@@ -215,22 +213,22 @@ export async function serveFile(
 
   // Set last modified header if last modification timestamp is available
   if (fileInfo.mtime) {
-    headers.set(HEADER.LastModified, fileInfo.mtime.toUTCString());
+    headers.set("Last-Modified", fileInfo.mtime.toUTCString());
   }
   if (etag) {
-    headers.set(HEADER.ETag, etag);
+    headers.set("ETag", etag);
   }
 
   // Set mime-type using the file extension in filePath
   const contentTypeValue = contentType(extname(filePath));
   if (contentTypeValue) {
-    headers.set(HEADER.ContentType, contentTypeValue);
+    headers.set("Content-Type", contentTypeValue);
   }
   const fileSize = fileInfo.size;
 
-  if (req.method === METHOD.Head) {
+  if (req.method === "HEAD") {
     // Set content length
-    headers.set(HEADER.ContentLength, `${fileSize}`);
+    headers.set("Content-Length", `${fileSize}`);
 
     const status = STATUS_CODE.OK;
     return new Response(null, {
@@ -244,8 +242,8 @@ export async function serveFile(
     // If a `if-none-match` header is present and the value matches the tag or
     // if a `if-modified-since` header is present and the value is bigger than
     // the access timestamp value, then return 304
-    const ifNoneMatchValue = req.headers.get(HEADER.IfNoneMatch);
-    const ifModifiedSinceValue = req.headers.get(HEADER.IfModifiedSince);
+    const ifNoneMatchValue = req.headers.get("If-None-Match");
+    const ifModifiedSinceValue = req.headers.get("If-Modified-Since");
     if (
       (!ifNoneMatch(ifNoneMatchValue, etag)) ||
       (ifNoneMatchValue === null &&
@@ -263,7 +261,7 @@ export async function serveFile(
     }
   }
 
-  const rangeValue = req.headers.get(HEADER.Range);
+  const rangeValue = req.headers.get("Range");
 
   // handle range request
   // Note: Some clients add a Range header to all requests to limit the size of the response.
@@ -275,7 +273,7 @@ export async function serveFile(
     // Returns 200 OK if parsing the range header fails
     if (!parsed) {
       // Set content length
-      headers.set(HEADER.ContentLength, `${fileSize}`);
+      headers.set("Content-Length", `${fileSize}`);
 
       const file = await Deno.open(filePath);
       const status = STATUS_CODE.OK;
@@ -293,7 +291,7 @@ export async function serveFile(
       fileSize <= parsed.start
     ) {
       // Set the "Content-range" header
-      headers.set(HEADER.ContentRange, `bytes */${fileSize}`);
+      headers.set("Content-Range", `bytes */${fileSize}`);
 
       return createStandardResponse(
         STATUS_CODE.RangeNotSatisfiable,
@@ -306,11 +304,11 @@ export async function serveFile(
     const end = Math.min(parsed.end, fileSize - 1);
 
     // Set the "Content-range" header
-    headers.set(HEADER.ContentRange, `bytes ${start}-${end}/${fileSize}`);
+    headers.set("Content-Range", `bytes ${start}-${end}/${fileSize}`);
 
     // Set content length
     const contentLength = end - start + 1;
-    headers.set(HEADER.ContentLength, `${contentLength}`);
+    headers.set("Content-Length", `${contentLength}`);
 
     // Return 206 Partial Content
     const file = await Deno.open(filePath);
@@ -326,7 +324,7 @@ export async function serveFile(
   }
 
   // Set content length
-  headers.set(HEADER.ContentLength, `${fileSize}`);
+  headers.set("Content-Length", `${fileSize}`);
 
   const file = await Deno.open(filePath);
   const status = STATUS_CODE.OK;
@@ -407,14 +405,14 @@ async function serveDirIndex(
   const page = dirViewerTemplate(formattedDirUrl, listEntry);
 
   const headers = createBaseHeaders();
-  headers.set(HEADER.ContentType, "text/html; charset=UTF-8");
-  if (req.method === METHOD.Head) {
+  headers.set("Content-Type", "text/html; charset=UTF-8");
+  if (req.method === "HEAD") {
     const pageSize = new TextEncoder().encode(page).byteLength;
-    headers.set(HEADER.ContentLength, String(pageSize));
+    headers.set("Content-Length", String(pageSize));
   }
 
   const status = STATUS_CODE.OK;
-  return new Response(req.method === METHOD.Head ? null : page, {
+  return new Response(req.method === "HEAD" ? null : page, {
     status,
     statusText: STATUS_TEXT[status],
     headers,
@@ -435,7 +433,7 @@ function createBaseHeaders(): Headers {
   return new Headers({
     server: "deno",
     // Set "accept-ranges" so that the client knows it can make range requests on future requests
-    [HEADER.AcceptRanges]: "bytes",
+    ["Accept-Ranges"]: "bytes",
   });
 }
 
@@ -654,7 +652,7 @@ export async function serveDir(
   req: Request,
   opts: ServeDirOptions = {},
 ): Promise<Response> {
-  if (req.method !== METHOD.Get && req.method !== METHOD.Head) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
     return createStandardResponse(STATUS_CODE.MethodNotAllowed);
   }
 
@@ -672,9 +670,9 @@ export async function serveDir(
   const isRedirectResponse = isRedirectStatus(response.status);
 
   if (opts.enableCors && !isRedirectResponse) {
-    response.headers.append(HEADER.AccessControlAllowOrigin, "*");
+    response.headers.append("Access-Control-Allow-Origin", "*");
     response.headers.append(
-      HEADER.AccessControlAllowHeaders,
+      "Access-Control-Allow-Headers",
       "Origin, X-Requested-With, Content-Type, Accept, Range",
     );
   }
