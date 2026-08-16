@@ -52,6 +52,8 @@
       "include": [
         "camelcase",
         "no-import-prefix",
+        "no-node-globals",
+        "no-process-global",
         "no-sync-fn-in-async-fn",
         "single-var-declarator",
         "no-console"
