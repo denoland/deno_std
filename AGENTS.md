@@ -93,6 +93,10 @@ Example snippets must be reproducible and use `@std/assert` assertions. Use
 `ignore` directive to skip running a snippet, `expect-error` for expected
 failures, `no-assert` to exempt a snippet from requiring assertions.
 
+`deno task test` (via `--doc`) also type-checks TypeScript code fences in
+markdown files such as README.md; mark snippets that cannot run in CI by tagging
+the fence `ts ignore` instead of `ts`.
+
 Module files (`mod.ts`) need a `@module` tag.
 
 ## Error Message Style
