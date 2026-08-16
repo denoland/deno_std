@@ -207,7 +207,7 @@ Deno.test(
   },
 );
 
-//TODO test permissions
+// TODO(cknight): test permissions
 
 Deno.test(
   "loadSync() prevents file system reads of default path parameter values by using explicit null",

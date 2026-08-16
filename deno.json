@@ -50,6 +50,7 @@
     "rules": {
       "tags": ["recommended", "jsr"],
       "include": [
+        "ban-untagged-todo",
         "camelcase",
         "no-import-prefix",
         "no-sync-fn-in-async-fn",

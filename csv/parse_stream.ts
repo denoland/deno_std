@@ -382,7 +382,7 @@ export class CsvParseStream<
     } else if (this.#options.fieldsPerRecord === 0) {
       this.#fieldsPerRecord = "UNINITIALIZED";
     } else {
-      // TODO: Should we check if it's a valid integer?
+      // TODO(magurotuna): Should we check if it's a valid integer?
       this.#fieldsPerRecord = this.#options.fieldsPerRecord;
     }
 

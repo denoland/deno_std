@@ -240,7 +240,7 @@ class Parser {
     } else if (options.fieldsPerRecord === 0) {
       _nbFields = "UNINITIALIZED";
     } else {
-      // TODO: Should we check if it's a valid integer?
+      // TODO(magurotuna): Should we check if it's a valid integer?
       _nbFields = options.fieldsPerRecord;
     }
 
