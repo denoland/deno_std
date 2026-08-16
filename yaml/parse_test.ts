@@ -1226,3 +1226,185 @@ Deno.test({
     );
   },
 });
+
+Deno.test("unstableParse() with useMaps parses mappings into Maps with typed keys", () => {
+  // The exact example from https://github.com/denoland/std/issues/7283
+  assertEquals(
+    unstableParse(
+      `milestones:
+  3: A3
+  6: D4
+  9: G3`,
+      { useMaps: true },
+    ),
+    new Map([[
+      "milestones",
+      new Map([[3, "A3"], [6, "D4"], [9, "G3"]]),
+    ]]),
+  );
+  // Keys resolve through the schema like values
+  const map = unstableParse(
+    "3: number\ntrue: boolean\n2001-07-23: date\nnull: nothing",
+    { useMaps: true },
+  ) as Map<unknown, unknown>;
+  assertEquals([...map.keys()].slice(0, 2), [3, true]);
+  assertInstanceOf([...map.keys()][2], Date);
+  assertEquals([...map.keys()][3], null);
+  // Flow mappings too
+  assertEquals(
+    unstableParse("{3: A3, b: 2}", { useMaps: true }),
+    new Map<unknown, unknown>([[3, "A3"], ["b", 2]]),
+  );
+  // An explicit pair inside a flow sequence becomes a single-pair Map
+  assertEquals(
+    unstableParse("[? a : 1, plain]", { useMaps: true }),
+    [new Map([["a", 1]]), "plain"],
+  );
+  // Entries preserve document order
+  assertEquals(
+    [...(unstableParse("b: 1\na: 2\nc: 3", { useMaps: true }) as Map<
+      unknown,
+      unknown
+    >).keys()],
+    ["b", "a", "c"],
+  );
+});
+
+Deno.test("unstableParse() with useMaps keeps number and string keys distinct", () => {
+  assertEquals(
+    unstableParse('2: technically\n"2": valid', { useMaps: true }),
+    new Map<unknown, unknown>([[2, "technically"], ["2", "valid"]]),
+  );
+});
+
+Deno.test("unstableParse() with useMaps handles complex mapping keys", () => {
+  assertEquals(
+    unstableParse(
+      `? - Detroit Tigers
+  - Chicago cubs
+: - 2001-07-23`,
+      { useMaps: true },
+    ),
+    new Map([[["Detroit Tigers", "Chicago cubs"], [new Date("2001-07-23")]]]),
+  );
+  // Nested arrays inside keys are legal in this mode (no
+  // "nested arrays are not supported inside keys" error)
+  assertEquals(
+    unstableParse("? - [ foo ]\n: bar", { useMaps: true }),
+    new Map([[[["foo"]], "bar"]]),
+  );
+  // Mapping keys stay structural instead of becoming "[object Object]"
+  assertEquals(
+    unstableParse("? { foo: bar }\n: baz", { useMaps: true }),
+    new Map([[new Map([["foo", "bar"]]), "baz"]]),
+  );
+});
+
+Deno.test("unstableParse() with useMaps detects duplicate keys", () => {
+  assertThrows(
+    () => unstableParse("3: a\n3: b", { useMaps: true }),
+    YamlSyntaxError,
+    "Cannot store mapping pair: duplicated key",
+  );
+  // Last one wins, in the original position, when duplicates are allowed
+  assertEquals(
+    unstableParse("a: 1\nb: 2\na: 3", {
+      useMaps: true,
+      allowDuplicateKeys: true,
+    }),
+    new Map([["a", 3], ["b", 2]]),
+  );
+  // Structurally equal complex keys are distinct Map keys...
+  assertEquals(
+    (unstableParse("? [1, 2]\n: a\n? [1, 2]\n: b", {
+      useMaps: true,
+    }) as Map<unknown, unknown>).size,
+    2,
+  );
+  // ...but the same aliased node is a duplicate
+  assertThrows(
+    () => unstableParse("? &k [1, 2]\n: a\n? *k\n: b", { useMaps: true }),
+    YamlSyntaxError,
+    "Cannot store mapping pair: duplicated key",
+  );
+});
+
+Deno.test("unstableParse() with useMaps handles merge keys", () => {
+  // Explicit keys override merged ones without a duplicate error,
+  // keeping the merged position
+  assertEquals(
+    unstableParse("base: &b\n  a: 1\n  b: 2\nmerged:\n  <<: *b\n  b: 3", {
+      useMaps: true,
+    }),
+    new Map<unknown, unknown>([
+      ["base", new Map([["a", 1], ["b", 2]])],
+      ["merged", new Map([["a", 1], ["b", 3]])],
+    ]),
+  );
+  // Sequence of merge sources; earlier entries win
+  assertEquals(
+    (unstableParse("a: &a {x: 1, y: 0}\nb: &b {y: 2}\nc:\n  <<: [*a, *b]", {
+      useMaps: true,
+    }) as Map<unknown, Map<unknown, unknown>>).get("c"),
+    new Map([["x", 1], ["y", 0]]),
+  );
+  assertThrows(
+    () => unstableParse("<<: 5\nok: 1", { useMaps: true }),
+    YamlSyntaxError,
+    "Cannot merge mappings: the provided source object is unacceptable",
+  );
+});
+
+Deno.test("unstableParse() with useMaps handles anchors, aliases and cycles", () => {
+  const map = unstableParse("a: &x\n  k: 1\nb: *x", {
+    useMaps: true,
+  }) as Map<unknown, unknown>;
+  assertInstanceOf(map.get("a"), Map);
+  assert(map.get("a") === map.get("b"));
+  // A mapping may alias itself; the Map's identity is captured by the anchor
+  const cycle = unstableParse("&root\nself: *root", {
+    useMaps: true,
+  }) as Map<unknown, unknown>;
+  assert(cycle.get("self") === cycle);
+});
+
+Deno.test("unstableParse() with useMaps treats `__proto__` as an ordinary key", () => {
+  const map = unstableParse("__proto__:\n  polluted: true", {
+    useMaps: true,
+  }) as Map<unknown, unknown>;
+  assert(map.has("__proto__"));
+  assertEquals(map.get("__proto__"), new Map([["polluted", true]]));
+  assertEquals(({} as { polluted?: unknown }).polluted, undefined);
+  // Merge path too
+  const merged = unstableParse("<<:\n  __proto__:\n    polluted: true\nok: 1", {
+    useMaps: true,
+  }) as Map<unknown, unknown>;
+  assert(merged.has("__proto__"));
+  assertEquals(({} as { polluted?: unknown }).polluted, undefined);
+});
+
+Deno.test("unstableParse() with useMaps constructs Set, Map and pairs from !!set, !!omap and !!pairs", () => {
+  assertEquals(
+    unstableParse("!!set\n? 1\n? two", { useMaps: true }),
+    new Set<unknown>([1, "two"]),
+  );
+  assertEquals(
+    unstableParse("!!omap\n- Mark: 65\n- 3: three", { useMaps: true }),
+    new Map<unknown, unknown>([["Mark", 65], [3, "three"]]),
+  );
+  assertThrows(
+    () => unstableParse("!!omap\n- 3: a\n- 3: b", { useMaps: true }),
+    YamlSyntaxError,
+    "Cannot resolve a node",
+  );
+  // Each omap entry must be a single-pair mapping
+  assertThrows(
+    () => unstableParse("!!omap\n- a: 1\n  b: 2", { useMaps: true }),
+    YamlSyntaxError,
+    "Cannot resolve a node",
+  );
+  assertEquals(
+    unstableParse("!!pairs\n- Mark: 65\n- Mark: 66", { useMaps: true }),
+    [["Mark", 65], ["Mark", 66]],
+  );
+});

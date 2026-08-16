@@ -9,6 +9,7 @@ import {
   type ImplicitType,
   stringify as unstableStringify,
 } from "./unstable_stringify.ts";
+import { parse as unstableParse } from "./unstable_parse.ts";
 import { compare, parse } from "@std/semver";
 
 Deno.test({
@@ -907,4 +908,159 @@ tags:
 `,
     );
   },
+});
+
+Deno.test("unstableStringify() stringifies Maps as mappings in insertion order", () => {
+  assertEquals(
+    unstableStringify(
+      new Map<unknown, unknown>([[3, "A3"], ["b", 2], [true, null]]),
+    ),
+    "3: A3\nb: 2\ntrue: null\n",
+  );
+  // `sortKeys` does not apply to Map entries: insertion order is the contract
+  assertEquals(
+    unstableStringify(new Map([["b", 1], ["a", 2]]), { sortKeys: true }),
+    "b: 1\na: 2\n",
+  );
+  assertEquals(unstableStringify(new Map()), "{}\n");
+  // Nested in plain objects and emitted in flow style when requested
+  assertEquals(
+    unstableStringify({ m: new Map([[1, "a"]]) }),
+    "m:\n  1: a\n",
+  );
+  assertEquals(
+    unstableStringify({ m: new Map([[1, "a"]]) }, { flowLevel: 0 }),
+    "{m: {1: a}}\n",
+  );
+});
+
+Deno.test("unstableStringify() stringifies complex Map keys in explicit key form", () => {
+  assertEquals(
+    unstableStringify(
+      new Map<unknown, unknown>([
+        [["a", "b"], 1],
+        [new Map([["x", 1]]), "mk"],
+      ]),
+    ),
+    "?\n  - a\n  - b\n: 1\n?\n  x: 1\n: mk\n",
+  );
+});
+
+Deno.test("unstableStringify() stringifies Map keys in flow style", () => {
+  assertEquals(
+    unstableStringify(
+      new Map<unknown, unknown>([[["a", "b"], 1], [3, "x"]]),
+      { flowLevel: 0 },
+    ),
+    "{[a, b]: 1, 3: x}\n",
+  );
+  // `condenseFlow` quotes string keys only; quoting other keys would change
+  // their parsed type
+  assertEquals(
+    unstableStringify(
+      new Map<unknown, unknown>([[3, "a"], ["k", "v"]]),
+      { flowLevel: 0, condenseFlow: true },
+    ),
+    '{3:a, "k":v}\n',
+  );
+});
+
+Deno.test("unstableStringify() stringifies Sets as !!set mappings", () => {
+  assertEquals(
+    unstableStringify(new Set(["a", 2])),
+    "!<tag:yaml.org,2002:set>\n? a\n: null\n? 2\n: null\n",
+  );
+  assertEquals(
+    unstableStringify(new Set()),
+    "!<tag:yaml.org,2002:set> {}\n",
+  );
+});
+
+Deno.test("unstableStringify() anchors duplicate Maps and objects inside Maps", () => {
+  const shared = new Map([["k", 1]]);
+  assertEquals(
+    unstableStringify({ x: shared, y: shared }),
+    "x: &ref_0\n  k: 1\n'y': *ref_0\n",
+  );
+  // Duplicate detection walks Map keys as well as values
+  const object = { v: 1 };
+  assertEquals(
+    unstableStringify(
+      new Map<unknown, unknown>([[object, "first"], ["other", object]]),
+    ),
+    "? &ref_0\n  v: 1\n: first\nother: *ref_0\n",
+  );
+  // Anchors work in flow style too
+  assertEquals(
+    unstableStringify({ x: shared, y: shared }, { flowLevel: 0 }),
+    "{x: &ref_0 {k: 1}, 'y': *ref_0}\n",
+  );
+});
+
+Deno.test("unstableStringify() applies the skipInvalid doctrine to Map entries", () => {
+  assertThrows(
+    () => unstableStringify(new Map([["fn", () => {}]])),
+    TypeError,
+    "Cannot stringify function",
+  );
+  assertEquals(
+    unstableStringify(new Map([["fn", () => {}]]), { skipInvalid: true }),
+    "{}\n",
+  );
+  assertEquals(
+    unstableStringify(
+      new Map<unknown, unknown>([[() => {}, 1], ["ok", 2]]),
+      { skipInvalid: true },
+    ),
+    "ok: 2\n",
+  );
+  // Invalid keys and values are skipped per pair in flow style too
+  assertEquals(
+    unstableStringify(
+      new Map<unknown, unknown>([[() => {}, 1], ["k", () => {}], [1, "ok"]]),
+      { skipInvalid: true, flowLevel: 0 },
+    ),
+    "{1: ok}\n",
+  );
+});
+
+Deno.test("unstableStringify() puts Map keys over 1024 characters in explicit key form", () => {
+  const longKey = "x".repeat(1025);
+  assertEquals(
+    unstableStringify(new Map([[longKey, 1]])),
+    `? ${longKey}\n: 1\n`,
+  );
+  assertEquals(
+    unstableStringify(new Map([[longKey, 1]]), { flowLevel: 0 }),
+    `{? ${longKey}: 1}\n`,
+  );
+});
+
+Deno.test("unstableStringify() round-trips Maps and Sets with unstableParse()", () => {
+  const source = new Map<unknown, unknown>([
+    [3, "A3"],
+    ["3", "S3"],
+    [["a", "b"], new Set([1, "two"])],
+    [new Map([[true, null]]), [1, 2, 3]],
+  ]);
+  assertEquals(
+    unstableParse(unstableStringify(source), { useMaps: true }),
+    source,
+  );
+  // And starting from YAML text
+  const yaml = `milestones:
+  3: A3
+  6: D4
+  9: G3
+`;
+  assertEquals(
+    unstableStringify(unstableParse(yaml, { useMaps: true })),
+    yaml,
+  );
+});
+
+Deno.test("stringify() still stringifies Maps as empty mappings", () => {
+  // The stable stringify is unchanged in this mode; only the unstable one
+  // understands Maps.
+  assertEquals(stringify(new Map([["a", 1]])), "{}\n");
 });

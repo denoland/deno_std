@@ -18,6 +18,20 @@ export type ParseOptions = StableParseOptions & {
    * Extra types to be added to the schema.
    */
   extraTypes?: ImplicitType[];
+  /**
+   * If `true`, YAML mappings are parsed into {@linkcode Map}s instead of
+   * plain objects, and keys keep their parsed types instead of being coerced
+   * to strings: `3:` yields the number `3`, `"3":` the string `"3"`. Applies
+   * at every depth; entries preserve document order. `!!set` becomes a
+   * {@linkcode Set}, `!!omap` a `Map`, and `!!pairs` an array of
+   * `[key, value]` pairs. Duplicate keys compare like `Map` keys
+   * (SameValueZero), so `3` and `"3"` are distinct keys.
+   *
+   * @experimental **UNSTABLE**: New API, yet to be vetted.
+   *
+   * @default {false}
+   */
+  useMaps?: boolean;
 };
 
 function sanitizeInput(input: string) {

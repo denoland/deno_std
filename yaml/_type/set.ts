@@ -5,13 +5,27 @@
 
 import type { Type } from "../_type.ts";
 
-export const set: Type<"mapping", Record<PropertyKey, unknown>> = {
+// A `Map` input means the loader runs with `useMaps`; the plain-object
+// branches must stay byte-identical for the legacy loader.
+export const set: Type<
+  "mapping",
+  Record<PropertyKey, unknown> | Set<unknown>
+> = {
   tag: "tag:yaml.org,2002:set",
   kind: "mapping",
-  construct: (data: Record<string, unknown>): Record<string, unknown> =>
-    data !== null ? data : {},
-  resolve: (data: Record<string, unknown>): boolean => {
+  construct: (
+    data: Record<string, unknown> | Map<unknown, unknown> | null,
+  ): Record<string, unknown> | Set<unknown> => {
+    if (data instanceof Map) return new Set(data.keys());
+    return data !== null ? data : {};
+  },
+  resolve: (
+    data: Record<string, unknown> | Map<unknown, unknown> | null,
+  ): boolean => {
     if (data === null) return true;
-    return Object.values(data).every((it) => it === null);
+    const values = data instanceof Map
+      ? [...data.values()]
+      : Object.values(data);
+    return values.every((it) => it === null);
   },
 };

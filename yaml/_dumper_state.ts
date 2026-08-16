@@ -376,7 +376,10 @@ function blockHeader(string: string, indentPerLevel: number): string {
   return `${indentIndicator}${chomp}\n`;
 }
 
-function getDuplicateObjects(root: unknown): unknown[] {
+function getDuplicateObjects(
+  root: unknown,
+  walkMapsAndSets: boolean,
+): unknown[] {
   const seenObjects = new Set();
   const duplicateObjects = new Set();
   const queue = [root];
@@ -389,8 +392,15 @@ function getDuplicateObjects(root: unknown): unknown[] {
       continue;
     }
     seenObjects.add(value);
-    const children = Array.isArray(value) ? value : Object.values(value);
-    queue.push(...children);
+    if (Array.isArray(value)) {
+      queue.push(...value);
+    } else if (walkMapsAndSets && value instanceof Map) {
+      queue.push(...value.keys(), ...value.values());
+    } else if (walkMapsAndSets && value instanceof Set) {
+      queue.push(...value);
+    } else {
+      queue.push(...Object.values(value));
+    }
   }
 
   return [...duplicateObjects];
@@ -453,6 +463,12 @@ export interface DumperStateOptions {
    * for non-printable characters. (default: "'")
    */
   quoteStyle?: "'" | '"';
+  /**
+   * If true, `Map`s stringify as YAML mappings in insertion order and `Set`s
+   * as `!!set`. Internal-only: absent from the public `StringifyOptions`
+   * types; the unstable module sets it unconditionally. (default: false)
+   */
+  serializeMapsAndSets?: boolean;
 }
 
 export class DumperState {
@@ -471,6 +487,7 @@ export class DumperState {
   usedDuplicates: Set<unknown> = new Set();
   styleMap: Map<string, StyleVariant> = new Map();
   quoteStyle: "'" | '"';
+  serializeMapsAndSets: boolean;
 
   constructor({
     schema = DEFAULT_SCHEMA,
@@ -485,6 +502,7 @@ export class DumperState {
     compatMode = true,
     condenseFlow = false,
     quoteStyle = "'",
+    serializeMapsAndSets = false,
   }: DumperStateOptions) {
     this.indent = Math.max(1, indent);
     this.arrayIndent = arrayIndent;
@@ -499,6 +517,7 @@ export class DumperState {
     this.implicitTypes = schema.implicitTypes;
     this.explicitTypes = schema.explicitTypes;
     this.quoteStyle = quoteStyle;
+    this.serializeMapsAndSets = serializeMapsAndSets;
   }
 
   // Note: line breaking/folding is implemented for only the folded style.
@@ -711,6 +730,95 @@ export class DumperState {
     return results.length ? prefix + results.join(separator) : "{}"; // Empty mapping if no valid pairs.
   }
 
+  stringifyFlowMap(
+    map: Map<unknown, unknown>,
+    { level }: { level: number },
+  ): string {
+    const separator = this.condenseFlow ? ":" : ": ";
+
+    const results = [];
+    for (const [key, value] of map) {
+      const keyString = this.stringifyNode(key, {
+        level,
+        block: false,
+        compact: false,
+        isKey: true,
+      });
+      if (keyString === null) continue; // Skip this pair because of invalid key.
+
+      const valueString = this.stringifyNode(value, {
+        level,
+        block: false,
+        compact: false,
+        isKey: false,
+      });
+      if (valueString === null) continue; // Skip this pair because of invalid value.
+
+      // The `condenseFlow` quote is only sound for string keys; quoting any
+      // other key would change its parsed type.
+      const quote = this.condenseFlow && typeof key === "string" ? '"' : "";
+      const keyPrefix = keyString.length > 1024 ? "? " : "";
+      results.push(
+        quote + keyPrefix + keyString + quote + separator + valueString,
+      );
+    }
+
+    return `{${results.join(", ")}}`;
+  }
+
+  // Entries are emitted in insertion order; `sortKeys` deliberately does not
+  // apply (its callback contract is string-keyed).
+  stringifyBlockMap(
+    map: Map<unknown, unknown>,
+    { tag, level, compact }: {
+      tag: string | null;
+      level: number;
+      compact: boolean;
+    },
+  ): string {
+    const separator = generateNextLine(this.indent, level);
+
+    const results = [];
+
+    for (const [key, value] of map) {
+      // A collection key can collapse to a single line in compact form,
+      // which would be ambiguous inline; force it onto its own lines in
+      // explicit `? key` form.
+      const complexKey = isObject(key);
+      const keyString = this.stringifyNode(key, {
+        level: level + 1,
+        block: true,
+        compact: !complexKey,
+        isKey: true,
+      });
+      if (keyString === null) continue; // Skip this pair because of invalid key.
+
+      const explicitPair = (tag !== null && tag !== "?") ||
+        complexKey || (keyString.length > 1024);
+
+      const valueString = this.stringifyNode(value, {
+        level: level + 1,
+        block: true,
+        compact: explicitPair,
+        isKey: false,
+      });
+      if (valueString === null) continue; // Skip this pair because of invalid value.
+
+      let pairBuffer = "";
+      if (explicitPair) {
+        pairBuffer += keyString.charCodeAt(0) === LINE_FEED ? "?" : "? ";
+      }
+      pairBuffer += keyString;
+      if (explicitPair) pairBuffer += separator;
+      pairBuffer += valueString.charCodeAt(0) === LINE_FEED ? ":" : ": ";
+      pairBuffer += valueString;
+      results.push(pairBuffer);
+    }
+
+    const prefix = compact ? "" : separator;
+    return results.length ? prefix + results.join(separator) : "{}"; // Empty mapping if no valid pairs.
+  }
+
   getTypeRepresentation(type: Type<KindType, unknown>, value: unknown) {
     if (!type.represent) return value;
     const style = this.styleMap.get(type.tag) ??
@@ -752,7 +860,7 @@ export class DumperState {
     isKey: boolean;
   }): string | null {
     const result = this.detectType(value);
-    const tag = result.tag;
+    let tag = result.tag;
     value = result.value;
 
     if (block) {
@@ -800,6 +908,37 @@ export class DumperState {
         return stringifyValue(value, tag);
       }
 
+      if (
+        this.serializeMapsAndSets &&
+        (value instanceof Map || value instanceof Set)
+      ) {
+        let map: Map<unknown, unknown>;
+        if (value instanceof Set) {
+          // `!!set` only resolves when every value is null, so members must
+          // become null-valued keys for the output to round-trip.
+          tag = "tag:yaml.org,2002:set";
+          map = new Map([...value].map((member) => [member, null]));
+          compact = false;
+        } else {
+          map = value;
+        }
+        if (block && map.size !== 0) {
+          let string = this.stringifyBlockMap(map, { tag, level, compact });
+          if (duplicate) string = `&ref_${duplicateIndex}${string}`;
+          // A tagged block mapping starts on the next line; joining with a
+          // space would leave trailing whitespace after the tag.
+          if (
+            tag !== null && tag !== "?" && string.charCodeAt(0) === LINE_FEED
+          ) {
+            return `!<${tag}>${string}`;
+          }
+          return stringifyValue(string, tag);
+        }
+        let string = this.stringifyFlowMap(map, { level });
+        if (duplicate) string = `&ref_${duplicateIndex} ${string}`;
+        return stringifyValue(string, tag);
+      }
+
       if (block && Object.keys(value).length !== 0) {
         value = this.stringifyBlockMapping(value, { tag, level, compact });
         if (duplicate) value = `&ref_${duplicateIndex}${value}`;
@@ -817,7 +956,7 @@ export class DumperState {
 
   stringify(value: unknown): string {
     if (this.useAnchors) {
-      this.duplicates = getDuplicateObjects(value);
+      this.duplicates = getDuplicateObjects(value, this.serializeMapsAndSets);
       this.usedDuplicates = new Set();
     }
 

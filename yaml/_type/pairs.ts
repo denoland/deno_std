@@ -6,16 +6,29 @@
 import type { Type } from "../_type.ts";
 import { isPlainObject } from "../_utils.ts";
 
-function resolveYamlPairs(data: unknown[][]): boolean {
+// `Map` entries mean the loader runs with `useMaps`; the plain-object
+// branches must stay byte-identical for the legacy loader.
+function resolveYamlPairs(data: unknown[] | null): boolean {
   if (data === null) return true;
-  return data.every((it) => isPlainObject(it) && Object.keys(it).length === 1);
+  return data.every((it) =>
+    it instanceof Map
+      ? it.size === 1
+      : isPlainObject(it) && Object.keys(it).length === 1
+  );
 }
 
 export const pairs: Type<"sequence"> = {
   tag: "tag:yaml.org,2002:pairs",
-  construct(data: Record<string, unknown>[] | null): [string, unknown][] {
-    // Converts an array of objects into an array of key-value pairs.
-    return data?.flatMap(Object.entries) ?? [];
+  construct(
+    data: (Record<string, unknown> | Map<unknown, unknown>)[] | null,
+  ): [unknown, unknown][] {
+    // Converts an array of single-pair mappings into an array of key-value
+    // pairs.
+    return data?.flatMap((it) =>
+      it instanceof Map
+        ? [...it.entries()]
+        : Object.entries(it) as [unknown, unknown][]
+    ) ?? [];
   },
   kind: "sequence",
   resolve: resolveYamlPairs,

@@ -31,6 +31,14 @@ export type StringifyOptions = StableStringifyOptions & {
 /**
  * Converts a JavaScript object or value to a YAML document string.
  *
+ * Unlike the stable {@linkcode https://jsr.io/@std/yaml/doc/stringify/~/stringify | stringify},
+ * `Map`s are stringified as YAML mappings in insertion order (`sortKeys` does
+ * not apply to `Map` entries; its callback is string-keyed) and `Set`s as
+ * `!!set` mappings. This is the counterpart of the `useMaps` option of
+ * {@linkcode https://jsr.io/@std/yaml/doc/unstable-parse/~/parse | parse}.
+ *
+ * @experimental **UNSTABLE**: New API, yet to be vetted.
+ *
  * @example Usage
  * ```ts
  * import { stringify } from "@std/yaml/stringify";
@@ -54,6 +62,7 @@ export function stringify(
   const state = new DumperState({
     ...options,
     schema: getSchema(options.schema, options.extraTypes),
+    serializeMapsAndSets: true,
   });
   return state.stringify(data);
 }

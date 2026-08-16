@@ -66,7 +66,52 @@ export interface LoaderStateOptions {
   allowDuplicateKeys?: boolean;
   /** function to call on warning messages. */
   onWarning?(error: YamlSyntaxError): void;
+  /** if true, mappings are constructed as `Map`s with typed keys. */
+  useMaps?: boolean;
 }
+
+type MappingContainer = Record<string, unknown> | Map<unknown, unknown>;
+
+// Hidden protocol over the two mapping representations. Kept private so a
+// future public tag seam can expose it without a rewrite.
+interface MappingAdapter {
+  create(): MappingContainer;
+  has(container: MappingContainer, key: unknown): boolean;
+  set(container: MappingContainer, key: unknown, value: unknown): void;
+  entries(container: MappingContainer): Iterable<[unknown, unknown]>;
+}
+
+const OBJECT_ADAPTER: MappingAdapter = {
+  create: () => ({}),
+  has: (container, key) => Object.hasOwn(container, key as string),
+  set(container, key, value) {
+    // `Object.defineProperty` is significantly slower than direct
+    // assignment in V8. Direct assignment produces an identical descriptor
+    // (writable/enumerable/configurable) for ordinary keys; the only
+    // sensitive case is `__proto__`, where direct assignment would mutate
+    // the prototype chain instead of creating an own property.
+    if (key === "__proto__") {
+      Object.defineProperty(container, key, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
+    } else {
+      (container as Record<string, unknown>)[key as string] = value;
+    }
+  },
+  entries: (container) => Object.entries(container as Record<string, unknown>),
+};
+
+const MAP_ADAPTER: MappingAdapter = {
+  create: () => new Map(),
+  has: (container, key) => (container as Map<unknown, unknown>).has(key),
+  set(container, key, value) {
+    (container as Map<unknown, unknown>).set(key, value);
+  },
+  entries: (container) => (container as Map<unknown, unknown>).entries(),
+};
 
 const ESCAPED_HEX_LENGTHS = new Map<number, number>([
   [0x78, 2], // x
@@ -211,10 +256,17 @@ interface State {
   tag: string | null;
   anchor: string | null;
   kind: KindType | null;
-  result: unknown[] | Record<string, unknown> | string | null;
+  result:
+    | unknown[]
+    | Record<string, unknown>
+    | Map<unknown, unknown>
+    | string
+    | null;
 }
 export class LoaderState {
   #scanner: Scanner;
+  #mapping: MappingAdapter;
+  useMaps: boolean;
   lineIndent = 0;
   lineStart = 0;
   line = 0;
@@ -233,11 +285,14 @@ export class LoaderState {
       schema = DEFAULT_SCHEMA,
       onWarning,
       allowDuplicateKeys = false,
+      useMaps = false,
     }: LoaderStateOptions,
   ) {
     this.#scanner = new Scanner(input);
     this.onWarning = onWarning;
     this.allowDuplicateKeys = allowDuplicateKeys;
+    this.useMaps = useMaps;
+    this.#mapping = useMaps ? MAP_ADAPTER : OBJECT_ADAPTER;
     this.implicitTypes = schema.implicitTypes;
     this.typeMap = schema.typeMap;
 
@@ -428,72 +483,65 @@ export class LoaderState {
     if (detected) return { tag, anchor, kind: "sequence", result };
   }
   mergeMappings(
-    destination: Record<string, unknown>,
-    source: Record<string, unknown>,
-    overridableKeys: Set<string>,
+    destination: MappingContainer,
+    source: unknown,
+    overridableKeys: Set<unknown>,
   ) {
-    if (!isObject(source)) {
+    if (!isObject(source) || (this.useMaps && !(source instanceof Map))) {
       throw this.#createError(
         "Cannot merge mappings: the provided source object is unacceptable",
       );
     }
 
-    for (const [key, value] of Object.entries(source)) {
-      if (Object.hasOwn(destination, key)) continue;
-      // `Object.defineProperty` is significantly slower than direct
-      // assignment in V8. Direct assignment produces an identical descriptor
-      // (writable/enumerable/configurable) for ordinary keys; the only
-      // sensitive case is `__proto__`, where direct assignment would mutate
-      // the prototype chain instead of creating an own property.
-      if (key === "__proto__") {
-        Object.defineProperty(destination, key, {
-          value,
-          writable: true,
-          enumerable: true,
-          configurable: true,
-        });
-      } else {
-        destination[key] = value;
-      }
+    for (const [key, value] of this.#mapping.entries(source)) {
+      if (this.#mapping.has(destination, key)) continue;
+      this.#mapping.set(destination, key, value);
       overridableKeys.add(key);
     }
   }
   storeMappingPair(
-    result: Record<string, unknown>,
-    overridableKeys: Set<string>,
+    result: MappingContainer,
+    overridableKeys: Set<unknown>,
     keyTag: string | null,
-    keyNode: Record<PropertyKey, unknown> | unknown[] | string | null,
+    keyNode: unknown,
     valueNode: unknown,
     startLine?: number,
     startPos?: number,
-  ): Record<string, unknown> {
-    // The output is a plain object here, so keys can only be strings.
-    // We need to convert keyNode to a string, but doing so can hang the process
-    // (deeply nested arrays that explode exponentially using aliases).
-    if (Array.isArray(keyNode)) {
-      keyNode = Array.prototype.slice.call(keyNode);
+  ): MappingContainer {
+    let key: unknown;
+    if (this.useMaps) {
+      // Map keys keep their parsed types; complex keys stay structural.
+      key = keyNode;
+    } else {
+      // The output is a plain object here, so keys can only be strings.
+      // We need to convert keyNode to a string, but doing so can hang the
+      // process (deeply nested arrays that explode exponentially using
+      // aliases).
+      if (Array.isArray(keyNode)) {
+        keyNode = Array.prototype.slice.call(keyNode) as unknown[];
 
-      for (let index = 0; index < keyNode.length; index++) {
-        if (Array.isArray(keyNode[index])) {
-          throw this.#createError(
-            "Cannot store mapping pair: nested arrays are not supported inside keys",
-          );
-        }
+        for (let index = 0; index < (keyNode as unknown[]).length; index++) {
+          if (Array.isArray((keyNode as unknown[])[index])) {
+            throw this.#createError(
+              "Cannot store mapping pair: nested arrays are not supported inside keys",
+            );
+          }
 
-        if (typeof keyNode === "object" && isPlainObject(keyNode[index])) {
-          keyNode[index] = "[object Object]";
+          if (isPlainObject((keyNode as unknown[])[index])) {
+            (keyNode as unknown[])[index] = "[object Object]";
+          }
         }
       }
-    }
 
-    // Avoid code execution in load() via toString property
-    // (still use its own toString for arrays, timestamps,
-    // and whatever user schema extensions happen to have @@toStringTag)
-    if (typeof keyNode === "object" && isPlainObject(keyNode)) {
-      keyNode = "[object Object]";
-    }
+      // Avoid code execution in load() via toString property
+      // (still use its own toString for arrays, timestamps,
+      // and whatever user schema extensions happen to have @@toStringTag)
+      if (typeof keyNode === "object" && isPlainObject(keyNode)) {
+        keyNode = "[object Object]";
+      }
 
-    keyNode = String(keyNode);
+      key = String(keyNode);
+    }
 
     if (keyTag === "tag:yaml.org,2002:merge") {
       if (Array.isArray(valueNode)) {
@@ -505,35 +553,20 @@ export class LoaderState {
           this.mergeMappings(result, valueNode[index], overridableKeys);
         }
       } else {
-        this.mergeMappings(
-          result,
-          valueNode as Record<string, unknown>,
-          overridableKeys,
-        );
+        this.mergeMappings(result, valueNode, overridableKeys);
       }
     } else {
       if (
         !this.allowDuplicateKeys &&
-        !overridableKeys.has(keyNode) &&
-        Object.hasOwn(result, keyNode)
+        !overridableKeys.has(key) &&
+        this.#mapping.has(result, key)
       ) {
         this.line = startLine || this.line;
         this.#scanner.position = startPos || this.#scanner.position;
         throw this.#createError("Cannot store mapping pair: duplicated key");
       }
-      // See `mergeMappings` above for why `Object.defineProperty` is kept
-      // only for the `__proto__` key.
-      if (keyNode === "__proto__") {
-        Object.defineProperty(result, keyNode, {
-          value: valueNode,
-          writable: true,
-          enumerable: true,
-          configurable: true,
-        });
-      } else {
-        result[keyNode] = valueNode;
-      }
-      overridableKeys.delete(keyNode);
+      this.#mapping.set(result, key, valueNode);
+      overridableKeys.delete(key);
     }
 
     return result;
@@ -879,13 +912,14 @@ export class LoaderState {
     let ch = this.#scanner.peek();
     let terminator: number;
     let isMapping = true;
-    let result = {};
+    let result: unknown[] | MappingContainer;
     if (ch === LEFT_SQUARE_BRACKET) {
       terminator = RIGHT_SQUARE_BRACKET;
       isMapping = false;
       result = [];
     } else if (ch === LEFT_CURLY_BRACKET) {
       terminator = RIGHT_CURLY_BRACKET;
+      result = this.#mapping.create();
     } else {
       return;
     }
@@ -903,7 +937,7 @@ export class LoaderState {
     let isPair = false;
     let following = 0;
     let line = 0;
-    const overridableKeys = new Set<string>();
+    const overridableKeys = new Set<unknown>();
     while (ch !== 0) {
       this.skipSeparationSpace(true, nodeIndent);
 
@@ -964,16 +998,16 @@ export class LoaderState {
 
       if (isMapping) {
         this.storeMappingPair(
-          result as Record<string, unknown>,
+          result as MappingContainer,
           overridableKeys,
           keyTag,
           keyNode,
           valueNode,
         );
       } else if (isPair) {
-        (result as Record<string, unknown>[]).push(
+        (result as unknown[]).push(
           this.storeMappingPair(
-            {},
+            this.#mapping.create(),
             overridableKeys,
             keyTag,
             keyNode,
@@ -1169,8 +1203,8 @@ export class LoaderState {
     nodeIndent: number,
     flowIndent: number,
   ): State | void {
-    const result = {};
-    const overridableKeys = new Set<string>();
+    const result = this.#mapping.create();
+    const overridableKeys = new Set<unknown>();
 
     let allowCompact = false;
     let line: number;
