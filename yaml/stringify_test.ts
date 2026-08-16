@@ -869,15 +869,15 @@ Deno.test({
 });
 
 Deno.test({
-  name: "(unstable) stringify() handles quoteStyle",
+  name: "stringify() handles quoteStyle",
   fn() {
     const object = { url: "https://example.com" };
     assertEquals(
-      unstableStringify(object, { quoteStyle: '"' }),
+      stringify(object, { quoteStyle: '"' }),
       `url: "https://example.com"\n`,
     );
     assertEquals(
-      unstableStringify(object, { quoteStyle: "'" }),
+      stringify(object, { quoteStyle: "'" }),
       `url: 'https://example.com'\n`,
     );
   },

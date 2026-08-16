@@ -14,15 +14,6 @@ export type { ImplicitType, KindType, RepresentFn, SchemaType, Type };
 /** Options for {@linkcode stringify}. */
 export type StringifyOptions = StableStringifyOptions & {
   /**
-   * Strings will be quoted using this quoting style.
-   * If you specify single quotes, double quotes will still be used
-   * for non-printable characters.
-   *
-   * @default {`'`}
-   */
-  quoteStyle?: "'" | '"';
-
-  /**
    * Extra types to be added to the schema.
    */
   extraTypes?: ImplicitType[];

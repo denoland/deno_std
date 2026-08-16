@@ -85,6 +85,14 @@ export type StringifyOptions = {
    * @default {false}
    */
   condenseFlow?: boolean;
+  /**
+   * Strings will be quoted using this quoting style.
+   * If you specify single quotes, double quotes will still be used
+   * for non-printable characters.
+   *
+   * @default {`'`}
+   */
+  quoteStyle?: "'" | '"';
 };
 
 /**
