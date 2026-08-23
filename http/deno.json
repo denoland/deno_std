@@ -10,6 +10,7 @@
     "./unstable-formdata-decoder-stream": "./unstable_formdata_decoder_stream.ts",
     "./unstable-formdata-encoder-stream": "./unstable_formdata_encoder_stream.ts",
     "./unstable-header": "./unstable_header.ts",
+    "./unstable-is-retriable-fetch-error": "./unstable_is_retriable_fetch_error.ts",
     "./unstable-method": "./unstable_method.ts",
     "./unstable-problem-details": "./unstable_problem_details.ts",
     "./negotiation": "./negotiation.ts",
