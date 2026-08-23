@@ -73,6 +73,7 @@ import "../../fs/unstable_lstat_test.ts";
 import "../../fs/unstable_chmod_test.ts";
 import "../../fs/unstable_umask_test.ts";
 import "../../fs/unstable_utime_test.ts";
+import "../../http/unstable_retry_after_test.ts";
 import "../../internal/assertion_state_test.ts";
 import "../../path/_common/assert_path_test.ts";
 import "../../path/_common/basename_test.ts";
