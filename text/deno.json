@@ -18,7 +18,7 @@
     "./unstable-to-sentence-case": "./unstable_to_sentence_case.ts",
     "./to-snake-case": "./to_snake_case.ts",
     "./unstable-to-title-case": "./unstable_to_title_case.ts",
-    "./unstable-truncate": "./unstable_truncate.ts",
+    "./truncate": "./truncate.ts",
     "./word-similarity-sort": "./word_similarity_sort.ts"
   }
 }

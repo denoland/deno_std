@@ -1,7 +1,7 @@
 // Copyright 2018-2026 the Deno authors. MIT license.
 import { assertEquals } from "@std/assert/equals";
 import { assertThrows } from "@std/assert/throws";
-import { truncate } from "./unstable_truncate.ts";
+import { truncate } from "./truncate.ts";
 
 Deno.test("truncate() returns empty string when maxLength is zero", () => {
   assertEquals(truncate("hello", 0), "");

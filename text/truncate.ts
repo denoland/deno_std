@@ -31,8 +31,6 @@ export interface TruncateOptions {
  * Note: this function is not grapheme-cluster-aware. Combining characters, flag
  * emoji, and ZWJ sequences may still be visually split.
  *
- * @experimental **UNSTABLE**: New API, yet to be vetted.
- *
  * @param str The string to truncate.
  * @param maxLength The maximum length of the returned string (must be a
  * non-negative integer).
@@ -43,7 +41,7 @@ export interface TruncateOptions {
  *
  * @example End truncation (default)
  * ```ts
- * import { truncate } from "@std/text/unstable-truncate";
+ * import { truncate } from "@std/text/truncate";
  * import { assertEquals } from "@std/assert";
  *
  * assertEquals(truncate("Hello, world!", 8), "Hello, …");
@@ -52,7 +50,7 @@ export interface TruncateOptions {
  *
  * @example Middle truncation
  * ```ts
- * import { truncate } from "@std/text/unstable-truncate";
+ * import { truncate } from "@std/text/truncate";
  * import { assertEquals } from "@std/assert";
  *
  * assertEquals(
@@ -63,7 +61,7 @@ export interface TruncateOptions {
  *
  * @example Start truncation
  * ```ts
- * import { truncate } from "@std/text/unstable-truncate";
+ * import { truncate } from "@std/text/truncate";
  * import { assertEquals } from "@std/assert";
  *
  * assertEquals(
@@ -74,7 +72,7 @@ export interface TruncateOptions {
  *
  * @example Custom suffix
  * ```ts
- * import { truncate } from "@std/text/unstable-truncate";
+ * import { truncate } from "@std/text/truncate";
  * import { assertEquals } from "@std/assert";
  *
  * assertEquals(
