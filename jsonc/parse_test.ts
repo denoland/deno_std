@@ -100,6 +100,16 @@ Deno.test({
       "Cannot parse JSONC: unexpected end of JSONC input",
     );
     assertInvalidParse(
+      `"abc`,
+      SyntaxError,
+      "Cannot parse JSONC: unexpected end of JSONC input",
+    );
+    assertInvalidParse(
+      `{"a": "b`,
+      SyntaxError,
+      "Cannot parse JSONC: unexpected end of JSONC input",
+    );
+    assertInvalidParse(
       `[]100`,
       SyntaxError,
       'Cannot parse JSONC: unexpected token "100" in JSONC at position 2',

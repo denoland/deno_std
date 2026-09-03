@@ -156,12 +156,19 @@ class JsoncParser {
           // '"\\\\\\""' => '\\"'
           // '"\\\\\\\\"' => '\\\\'
           let shouldEscapeNext = false;
+          let hasEndOfString = false;
           i++;
           for (; i < this.#length; i++) { // read until find `"`
             if (this.#text[i] === '"' && !shouldEscapeNext) {
+              hasEndOfString = true;
               break;
             }
             shouldEscapeNext = this.#text[i] === "\\" && !shouldEscapeNext;
+          }
+          if (!hasEndOfString) {
+            throw new SyntaxError(
+              "Cannot parse JSONC: unexpected end of JSONC input",
+            );
           }
           yield {
             type: "String",
