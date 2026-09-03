@@ -7,6 +7,10 @@ export type { JsonValue };
 /**
  * Converts a JSON with Comments (JSONC) string into an object.
  *
+ * On top of what JSON allows, line comments (`//`), block comments, and a
+ * trailing comma after the last member of an object or array are accepted.
+ * Comments are discarded.
+ *
  * @example Usage
  * ```ts
  * import { parse } from "@std/jsonc";
@@ -18,6 +22,7 @@ export type { JsonValue };
  * ```
  *
  * @throws {SyntaxError} If the JSONC string is invalid.
+ * @throws {TypeError} If called with `new`.
  * @param text A valid JSONC string.
  * @returns The parsed JsonValue from the JSONC string.
  */
