@@ -582,13 +582,11 @@ export class CircuitBreaker<T = unknown> {
       };
     }
 
-    this.#rotateToNow(currentTime);
-    this.#requests.increment();
-
     let result: R;
     try {
       result = await fn();
     } catch (error) {
+      this.#recordRequest();
       if (tryCall(this.#isFailure, error)) {
         this.#handleFailure(error, currentState.state);
       }
@@ -602,6 +600,7 @@ export class CircuitBreaker<T = unknown> {
       }
     }
 
+    this.#recordRequest();
     const isResultFail = tryCall(this.#isResultFailure, result);
     if (isResultFail) {
       this.#handleFailure(undefined, currentState.state);
@@ -714,6 +713,15 @@ export class CircuitBreaker<T = unknown> {
       this.#failures.rotate(steps);
       this.#lastRotationMs += steps * this.#msPerSegment;
     }
+  }
+
+  /**
+   * Counts a completed request. Requests are recorded on completion, in the
+   * same segment as their outcome, so failures can never outnumber requests.
+   */
+  #recordRequest(): void {
+    this.#rotateToNow(Date.now());
+    this.#requests.increment();
   }
 
   /** Resets both counters and the rotation timestamp. */
