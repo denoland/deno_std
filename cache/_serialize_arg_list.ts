@@ -1,5 +1,5 @@
 // Copyright 2018-2026 the Deno authors. MIT license.
-import type { MemoizationCache } from "./memoize.ts";
+import type { CacheLike } from "./cache.ts";
 
 /**
  * Default serialization of arguments list for use as cache keys. Equivalence
@@ -11,7 +11,7 @@ import type { MemoizationCache } from "./memoize.ts";
  * @returns `getKey`, the function for getting cache keys.
  */
 export function _serializeArgList<Return>(
-  cache: MemoizationCache<unknown, Return>,
+  cache: CacheLike<unknown, Return>,
 ): (this: unknown, ...args: unknown[]) => string {
   // Three cooperating data structures track weak (reference-type) arguments:
   //   1. weakKeyToKeySegmentCache: WeakMap from object/symbol → segment id

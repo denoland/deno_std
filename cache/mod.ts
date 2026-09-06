@@ -2,14 +2,14 @@
 // This module is browser compatible.
 
 /**
- * In-memory cache utilities, such as memoization and caches with different
- * expiration policies.
+ * In-memory cache utilities, such as memoization and caches with LRU eviction
+ * and TTL expiration.
  *
  * ```ts
- * import { memoize, LruCache, type MemoizationCacheResult } from "@std/cache";
+ * import { Cache, memoize, type MemoizationCacheResult } from "@std/cache";
  * import { assertEquals } from "@std/assert";
  *
- * const cache = new LruCache<string, MemoizationCacheResult<bigint>>(1000);
+ * const cache = new Cache<string, MemoizationCacheResult<bigint>>({ maxSize: 1000 });
  *
  * // fibonacci function, which is very slow for n > ~30 if not memoized
  * const fib = memoize((n: bigint): bigint => {
@@ -22,6 +22,7 @@
  * @module
  */
 
+export * from "./cache.ts";
 export * from "./lru_cache.ts";
 export * from "./memoize.ts";
 export * from "./ttl_cache.ts";
