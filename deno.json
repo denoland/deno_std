@@ -16,8 +16,8 @@
   },
   "unstable": ["webgpu", "fs"],
   "tasks": {
-    "test": "deno test -A --parallel --trace-leaks --coverage --doc --clean --ignore=_tools/",
-    "test:with-unsafe-proto": "deno test --unstable-unsafe-proto --no-check -A --parallel --doc --ignore=_tools/",
+    "test": "deno test -A --parallel --trace-leaks --coverage --doc --clean --ignore=_tools/,_tmp/",
+    "test:with-unsafe-proto": "deno test --unstable-unsafe-proto --no-check -A --parallel --doc --ignore=_tools/,_tmp/",
     "test:tools": "deno test -A --doc _tools/",
     "test:browser": "git grep --name-only \"This module is browser compatible.\" | grep -v deno.json | grep -v .github/workflows | grep -v _tools | grep -v encoding/README.md | grep -v media_types/vendor/update.ts | xargs deno check --config browser-compat.tsconfig.json",
     "test:node": "(cd _tools/node_test_runner && npm install) && node --import ./_tools/node_test_runner/register_deno_shim.mjs ./_tools/node_test_runner/run_test.mjs",
@@ -39,6 +39,7 @@
   },
   "exclude": [
     ".git",
+    "_tmp",
     "jsonc/testdata",
     "toml/testdata",
     "_tools/node_test_runner",
