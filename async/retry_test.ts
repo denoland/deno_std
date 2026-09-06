@@ -295,12 +295,9 @@ Deno.test("retry() checks backoff function timings", async (t) => {
 
     await time.nextAsync();
     assertEquals(time.now - startTime, 7000);
-
-    await time.nextAsync();
-    assertEquals(time.now - startTime, 15000);
     assertEquals(resolved, false);
 
-    await time.runMicrotasks();
+    await time.nextAsync();
     assertEquals(time.now - startTime, 15000);
     assertEquals(resolved, true);
 
@@ -320,6 +317,9 @@ Deno.test("retry() caps backoff at maxTimeout", async () => {
     multiplier: 2,
     jitter: 0,
   });
+  // The final attempt rejects during the last advancement, so the handler
+  // must be attached before advancing.
+  const rejection = assertRejects(() => promise, RetryError);
 
   const startTime = time.now;
   await time.nextAsync(); // 1000ms (1000 * 2^0)
@@ -334,7 +334,7 @@ Deno.test("retry() caps backoff at maxTimeout", async () => {
   await time.nextAsync(); // 1500ms capped (would be 8000)
   assertEquals(time.now - startTime, 5500);
 
-  await assertRejects(() => promise, RetryError);
+  await rejection;
 });
 
 Deno.test("retry() only retries errors that are retriable with `isRetriable` option", async () => {

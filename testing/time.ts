@@ -241,6 +241,46 @@ function nextDueNode(): DueNode | null {
   }
 }
 
+/**
+ * Runs the earliest live timer due at or before `limit`, moving `now` to its
+ * deadline first. Returns `false` when no such timer exists.
+ */
+function runNextTimer(limit: number): boolean {
+  let dueNode: DueNode | null = dueTree.min();
+  while (dueNode && dueNode.due <= limit) {
+    const timer: Timer | undefined = dueNode.timers.shift();
+    if (timer && dueNodes.has(timer.id)) {
+      now = timer.due;
+      if (timer.repeat) {
+        const due: number = timer.due + timer.delay;
+        let dueNode: DueNode | null = dueTree.find({ due } as DueNode);
+        if (dueNode === null) {
+          dueNode = { due, timers: [] };
+          dueTree.insert(dueNode);
+        }
+        dueNode.timers.push({ ...timer, due });
+        dueNodes.set(timer.id, dueNode);
+      } else {
+        dueNodes.delete(timer.id);
+      }
+      timer.callback.apply(null, timer.args);
+      return true;
+    } else if (!timer) {
+      dueTree.remove(dueNode);
+      dueNode = dueTree.min();
+    }
+  }
+  return false;
+}
+
+function assertNotInPast(value: number) {
+  if (value < now) {
+    throw new RangeError(
+      `Cannot set current time in the past, time must be >= ${now}: received ${value}`,
+    );
+  }
+}
+
 let startedAt: number;
 let now: number;
 let initializedAt: number;
@@ -500,34 +540,8 @@ export class FakeTime {
    * @param value The current time (in milliseconds)
    */
   set now(value: number) {
-    if (value < now) {
-      throw new RangeError(
-        `Cannot set current time in the past, time must be >= ${now}: received ${value}`,
-      );
-    }
-    let dueNode: DueNode | null = dueTree.min();
-    while (dueNode && dueNode.due <= value) {
-      const timer: Timer | undefined = dueNode.timers.shift();
-      if (timer && dueNodes.has(timer.id)) {
-        now = timer.due;
-        if (timer.repeat) {
-          const due: number = timer.due + timer.delay;
-          let dueNode: DueNode | null = dueTree.find({ due } as DueNode);
-          if (dueNode === null) {
-            dueNode = { due, timers: [] };
-            dueTree.insert(dueNode);
-          }
-          dueNode.timers.push({ ...timer, due });
-          dueNodes.set(timer.id, dueNode);
-        } else {
-          dueNodes.delete(timer.id);
-        }
-        timer.callback.apply(null, timer.args);
-      } else if (!timer) {
-        dueTree.remove(dueNode);
-        dueNode = dueTree.min();
-      }
-    }
+    assertNotInPast(value);
+    while (runNextTimer(value));
     now = value;
   }
 
@@ -661,7 +675,9 @@ export class FakeTime {
 
   /**
    * Runs all pending microtasks then adds the specified number of milliseconds to the fake time.
-   * This will call any functions waiting to be called between the current and new fake time.
+   * This will call any functions waiting to be called between the current and new fake time,
+   * running all pending microtasks after each one. Timers scheduled by those callbacks or
+   * microtasks are also run if they fall due before the new fake time.
    *
    * @example Usage
    * ```ts
@@ -684,7 +700,21 @@ export class FakeTime {
    */
   async tickAsync(ms = 0) {
     await this.runMicrotasks();
-    this.now += ms;
+    await this.#advanceAsync(now + ms);
+  }
+
+  /**
+   * Runs every timer due at or before `target`, draining microtasks after
+   * each one so continuations observe the deadline they were created at.
+   * Callers must drain microtasks before calling.
+   */
+  async #advanceAsync(target: number) {
+    assertNotInPast(target);
+    while (runNextTimer(target)) {
+      await this.runMicrotasks();
+    }
+    // A callback or microtask may have moved the clock past the target.
+    if (now < target) now = target;
   }
 
   /**
@@ -718,6 +748,7 @@ export class FakeTime {
 
   /**
    * Runs all pending microtasks then advances time to when the next scheduled timer is due.
+   * Every timer due at that time is run, with all pending microtasks run after each one.
    * If there are no pending timers, time will not be changed.
    *
    * @example Usage
@@ -744,7 +775,10 @@ export class FakeTime {
    */
   async nextAsync(): Promise<boolean> {
     await this.runMicrotasks();
-    return this.next();
+    const next = nextDueNode();
+    if (!next) return false;
+    await this.#advanceAsync(next.due);
+    return true;
   }
 
   /**
@@ -781,7 +815,8 @@ export class FakeTime {
    * Advances time forward to the next due timer until there are no pending timers remaining.
    * If the timers create additional timers, they will be run too. If there is an interval,
    * time will keep advancing forward until the interval is cleared.
-   * Runs all pending microtasks before each timer.
+   * Runs all pending microtasks before each timer, so timers scheduled from
+   * microtasks are run too.
    *
    * @example Usage
    * ```ts
@@ -804,9 +839,7 @@ export class FakeTime {
    * ```
    */
   async runAllAsync() {
-    while (!dueTree.isEmpty()) {
-      await this.nextAsync();
-    }
+    while (await this.nextAsync());
   }
 
   /**

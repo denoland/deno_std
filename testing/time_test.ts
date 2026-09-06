@@ -12,7 +12,7 @@ import {
 } from "@std/assert";
 import { FakeTime, TimeError } from "./time.ts";
 import { _internals } from "./_time.ts";
-import { assertSpyCall, spy, type SpyCall } from "./mock.ts";
+import { assertSpyCall, assertSpyCalls, spy, type SpyCall } from "./mock.ts";
 import { deadline, delay } from "@std/async";
 
 function fromNow(): (..._args: unknown[]) => number {
@@ -565,6 +565,119 @@ Deno.test("FakeTime.nextAsync() runs all microtasks and next timer", async () =>
   assertEquals(seq, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
 });
 
+Deno.test("FakeTime.tickAsync() runs microtasks between timers so continuations observe the deadline they were created at", async () => {
+  using time = new FakeTime(0);
+  const seq: number[] = [];
+
+  setTimeout(async () => {
+    await Promise.resolve();
+    seq.push(Date.now());
+    setTimeout(() => seq.push(Date.now()), 10);
+  }, 10);
+  await time.tickAsync(20);
+
+  assertEquals(seq, [10, 20]);
+  assertEquals(time.now, 20);
+});
+
+Deno.test("FakeTime.tickAsync() runs microtasks between timers with equal deadlines", async () => {
+  using time = new FakeTime(0);
+  const seq: string[] = [];
+
+  setTimeout(() => {
+    seq.push("a");
+    Promise.resolve().then(() => seq.push("microtask"));
+  }, 10);
+  setTimeout(() => seq.push("b"), 10);
+  await time.tickAsync(10);
+
+  assertEquals(seq, ["a", "microtask", "b"]);
+});
+
+Deno.test("FakeTime.tickAsync() lets a microtask cancel a timer due in the same advancement", async () => {
+  using time = new FakeTime(0);
+  const cb = spy();
+
+  const id = setTimeout(cb, 10);
+  setTimeout(() => {
+    Promise.resolve().then(() => clearTimeout(id));
+  }, 5);
+  await time.tickAsync(20);
+
+  assertSpyCalls(cb, 0);
+  assertEquals(time.now, 20);
+});
+
+Deno.test("FakeTime.tickAsync() drains deep promise chains between timers", async () => {
+  using time = new FakeTime(0);
+  const seq: number[] = [];
+
+  setTimeout(async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    seq.push(Date.now());
+  }, 5);
+  setTimeout(() => seq.push(Date.now()), 10);
+  await time.tickAsync(10);
+
+  assertEquals(seq, [5, 10]);
+});
+
+Deno.test("FakeTime.tickAsync() stops at a throwing timer and leaves later timers pending", async () => {
+  using time = new FakeTime(0);
+  const cb = spy();
+
+  setTimeout(() => {
+    throw new Error("boom");
+  }, 5);
+  setTimeout(cb, 10);
+  await assertRejects(() => time.tickAsync(20), Error, "boom");
+
+  assertEquals(time.now, 5);
+  assertSpyCalls(cb, 0);
+  await time.tickAsync(5);
+  assertSpyCalls(cb, 1);
+});
+
+Deno.test("FakeTime.tickAsync() rejects a negative tick and leaves time unchanged", async () => {
+  using time = new FakeTime(100);
+  await assertRejects(
+    () => time.tickAsync(-10),
+    RangeError,
+    "Cannot set current time in the past, time must be >= 100: received 90",
+  );
+  assertEquals(time.now, 100);
+});
+
+Deno.test("FakeTime.tickAsync() keeps time advanced by a microtask beyond the target", async () => {
+  using time = new FakeTime(0);
+  const cb = spy();
+
+  setTimeout(() => {
+    Promise.resolve().then(() => time.tick(20));
+  }, 10);
+  setTimeout(cb, 25);
+  await time.tickAsync(10);
+
+  assertEquals(time.now, 30);
+  assertSpyCalls(cb, 1);
+});
+
+Deno.test("FakeTime.nextAsync() runs microtasks between timers with equal deadlines", async () => {
+  using time = new FakeTime(0);
+  const seq: string[] = [];
+
+  setTimeout(() => {
+    seq.push("a");
+    Promise.resolve().then(() => seq.push("microtask"));
+  }, 10);
+  setTimeout(() => seq.push("b"), 10);
+  setTimeout(() => seq.push("c"), 20);
+  assertEquals(await time.nextAsync(), true);
+
+  assertEquals(seq, ["a", "microtask", "b"]);
+  assertEquals(time.now, 10);
+});
+
 Deno.test("FakeTime.runAll() runs all timers without running microtasks", async () => {
   using time: FakeTime = new FakeTime();
   const start: number = Date.now();
@@ -630,6 +743,45 @@ Deno.test("FakeTime.runAllAsync() runs all microtasks and timers", async () => {
 });
 
 const Date_ = Date;
+
+Deno.test("FakeTime.runAllAsync() runs timers scheduled from pending microtasks", async () => {
+  using time = new FakeTime(0);
+  const cb = spy();
+
+  Promise.resolve().then(() => setTimeout(cb, 10));
+  await time.runAllAsync();
+
+  assertSpyCalls(cb, 1);
+  assertEquals(time.now, 10);
+});
+
+Deno.test("FakeTime.runAllAsync() runs microtasks between timers with equal deadlines", async () => {
+  using time = new FakeTime(0);
+  const seq: string[] = [];
+
+  setTimeout(() => {
+    seq.push("a");
+    Promise.resolve().then(() => seq.push("microtask"));
+  }, 10);
+  setTimeout(() => seq.push("b"), 10);
+  await time.runAllAsync();
+
+  assertEquals(seq, ["a", "microtask", "b"]);
+});
+
+Deno.test("FakeTime.runAllAsync() runs timers scheduled by the last timer's microtasks", async () => {
+  using time = new FakeTime(0);
+  const seq: number[] = [];
+
+  setTimeout(async () => {
+    await Promise.resolve();
+    setTimeout(() => seq.push(Date.now()), 10);
+  }, 10);
+  await time.runAllAsync();
+
+  assertEquals(seq, [20]);
+  assertEquals(time.now, 20);
+});
 
 Deno.test("Date from FakeTime is structured cloneable", () => {
   using _time: FakeTime = new FakeTime();
