@@ -75,10 +75,10 @@ function fakeTimeNow() {
 }
 
 const FakeDate = new Proxy(Date, {
-  construct(_target, args) {
+  construct(_target, args, newTarget) {
     if (args.length === 0) args.push(FakeDate.now());
-    // @ts-expect-error this is a passthrough
-    return new _internals.Date(...args);
+    // Forward newTarget so `class X extends Date` keeps its prototype.
+    return Reflect.construct(_internals.Date, args, newTarget);
   },
   apply(_target, _thisArg, _args) {
     return new _internals.Date(fakeTimeNow()).toString();

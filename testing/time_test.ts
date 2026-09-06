@@ -107,6 +107,47 @@ Deno.test("FakeTime causes Date function to return the string representation of 
   assertMatch(Date(), /(Fri|Thu) Jan 0(1|2) 1970/);
 });
 
+Deno.test("FakeTime preserves the prototype of Date subclasses", () => {
+  using _time = new FakeTime(24 * 60 * 60 * 1000);
+  class MyDate extends Date {
+    tag = "x";
+  }
+  const date = new MyDate();
+  assertInstanceOf(date, MyDate);
+  assertStrictEquals(Object.getPrototypeOf(date), MyDate.prototype);
+  assertEquals(date.tag, "x");
+  assertEquals(date.toISOString(), "1970-01-02T00:00:00.000Z");
+  assertEquals(new MyDate(1000).getTime(), 1000);
+});
+
+Deno.test("FakeTime causes new Date() to track the fake clock", () => {
+  using time = new FakeTime(9001);
+  assertEquals(new Date().getTime(), time.now);
+  time.tick(5000);
+  assertEquals(new Date().getTime(), time.now);
+});
+
+Deno.test("FakeTime passes explicit undefined through to Date", () => {
+  using _time = new FakeTime(9001);
+  assert(Number.isNaN(new Date(undefined as unknown as number).getTime()));
+});
+
+Deno.test("FakeTime constructor captured while faked works after restore", () => {
+  let Captured: DateConstructor;
+  let CapturedSub: new () => Date;
+  {
+    using _time = new FakeTime(9001);
+    Captured = Date;
+    CapturedSub = class extends Date {};
+  }
+  const before = _internals.Date.now();
+  const date = new Captured();
+  const sub = new CapturedSub();
+  assert(date.getTime() >= before);
+  assert(sub.getTime() >= before);
+  assertInstanceOf(sub, CapturedSub);
+});
+
 Deno.test("FakeTime timeout functions unchanged if FakeTime is uninitialized", () => {
   assertStrictEquals(setTimeout, _internals.setTimeout);
   assertStrictEquals(clearTimeout, _internals.clearTimeout);
