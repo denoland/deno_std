@@ -428,6 +428,36 @@ Deno.test("CircuitBreaker.execute() frees half_open concurrency slot on failure"
   assertEquals(breaker.state, "closed");
 });
 
+Deno.test("CircuitBreaker.execute() opens when a success brings the window to minimumThroughput", async () => {
+  const opens: [number, number][] = [];
+  const changes: string[] = [];
+  const breaker = new CircuitBreaker({
+    failureRateThreshold: 0.5,
+    minimumThroughput: 3,
+    onOpen: (failures, requests) => opens.push([failures, requests]),
+    onStateChange: (from, to) => changes.push(`${from}->${to}`),
+  });
+
+  await failN(breaker, 2);
+  assertEquals(breaker.state, "closed");
+
+  await succeedN(breaker, 1);
+  assertEquals(breaker.state, "open");
+  assertEquals(opens, [[2, 3]]);
+  assertEquals(changes, ["closed->open"]);
+});
+
+Deno.test("CircuitBreaker.execute() stays closed when a success keeps the rate below the threshold", async () => {
+  const breaker = new CircuitBreaker({
+    failureRateThreshold: 0.5,
+    minimumThroughput: 3,
+  });
+
+  await failN(breaker, 1);
+  await succeedN(breaker, 2);
+  assertEquals(breaker.state, "closed");
+});
+
 Deno.test("CircuitBreaker.execute() prevents stale half_open success from closing after concurrent failure", async () => {
   using time = new FakeTime();
 

@@ -758,8 +758,7 @@ export class CircuitBreaker<T = unknown> {
     const failureCount = this.#failures.total;
 
     const shouldOpen = previousState === "half_open" ||
-      (totalRequests >= this.#minimumThroughput &&
-        failureCount / totalRequests >= this.#failureRateThreshold);
+      this.#exceedsFailureRate();
 
     const existingOpenedAt = this.#state.state === "open"
       ? this.#state.openedAt
@@ -790,9 +789,33 @@ export class CircuitBreaker<T = unknown> {
     }
   }
 
-  /** Records a success and potentially closes the circuit from half-open. */
+  /** Whether the window has enough requests and the rate meets the threshold. */
+  #exceedsFailureRate(): boolean {
+    const totalRequests = this.#requests.total;
+    return totalRequests >= this.#minimumThroughput &&
+      this.#failures.total / totalRequests >= this.#failureRateThreshold;
+  }
+
+  /**
+   * Records a success. Closes the circuit from half-open once enough
+   * successes accrue. In closed state, a success can still be the request
+   * that lifts the window over `minimumThroughput`, so the rate is evaluated.
+   */
   #handleSuccess(previousState: CircuitState): void {
-    if (previousState === "closed") return;
+    if (previousState === "closed") {
+      if (this.#state.state !== "closed" || !this.#exceedsFailureRate()) {
+        return;
+      }
+      this.#state = {
+        ...this.#state,
+        state: "open",
+        openedAt: Date.now(),
+        consecutiveSuccesses: 0,
+      };
+      this.#onStateChange?.("closed", "open");
+      this.#onOpen?.(this.#failures.total, this.#requests.total);
+      return;
+    }
     if (this.#state.state !== "half_open") return;
 
     const newSuccessCount = this.#state.consecutiveSuccesses + 1;
