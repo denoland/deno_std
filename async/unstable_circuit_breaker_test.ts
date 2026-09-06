@@ -471,6 +471,84 @@ Deno.test("CircuitBreaker.execute() prevents stale half_open success from closin
   assertEquals(breaker.state, "open");
 });
 
+Deno.test("CircuitBreaker.execute() ignores success from a request admitted in an earlier half_open period", async () => {
+  using time = new FakeTime();
+
+  const breaker = new CircuitBreaker({
+    minimumThroughput: 1,
+    cooldownMs: 1000,
+    halfOpenMaxConcurrent: 1,
+    successThreshold: 1,
+  });
+
+  await failN(breaker, 1);
+  time.tick(1000);
+  assertEquals(breaker.state, "half_open");
+
+  let resolveStale: (() => void) | undefined;
+  const stale = breaker.execute(
+    () =>
+      new Promise<string>((r) => {
+        resolveStale = () => r("ok");
+      }),
+  );
+
+  breaker.forceOpen();
+  time.tick(1000);
+  assertEquals(breaker.state, "half_open");
+
+  resolveStale?.();
+  await stale;
+  assertEquals(breaker.state, "half_open");
+});
+
+Deno.test("CircuitBreaker.execute() does not release half_open capacity for a request from an earlier half_open period", async () => {
+  using time = new FakeTime();
+
+  const breaker = new CircuitBreaker({
+    minimumThroughput: 1,
+    cooldownMs: 1000,
+    halfOpenMaxConcurrent: 1,
+    successThreshold: 5,
+  });
+
+  await failN(breaker, 1);
+  time.tick(1000);
+  assertEquals(breaker.state, "half_open");
+
+  let resolveStale: (() => void) | undefined;
+  const stale = breaker.execute(
+    () =>
+      new Promise<string>((r) => {
+        resolveStale = () => r("ok");
+      }),
+  );
+
+  breaker.forceOpen();
+  time.tick(1000);
+  assertEquals(breaker.state, "half_open");
+
+  let resolveProbe: (() => void) | undefined;
+  const probe = breaker.execute(
+    () =>
+      new Promise<string>((r) => {
+        resolveProbe = () => r("ok");
+      }),
+  );
+
+  resolveStale?.();
+  await stale;
+
+  // The new period's single slot is still taken by `probe`.
+  await assertRejects(
+    () => breaker.execute(() => Promise.resolve("ok")),
+    CircuitBreakerOpenError,
+  );
+
+  resolveProbe?.();
+  await probe;
+});
+
 Deno.test("CircuitBreaker.execute() fires callbacks once when concurrent half_open requests both fail", async () => {
   using time = new FakeTime();
 

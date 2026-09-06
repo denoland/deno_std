@@ -444,6 +444,9 @@ export class CircuitBreaker<T = unknown> {
   #failures: RollingCounter;
   #lastRotationMs: number;
   #msPerSegment: number;
+  // Incremented on every OPEN -> HALF_OPEN transition so requests admitted
+  // in an earlier half-open period cannot affect a later one.
+  #halfOpenGeneration = 0;
 
   /**
    * Constructs a new {@linkcode CircuitBreaker} instance.
@@ -565,6 +568,7 @@ export class CircuitBreaker<T = unknown> {
 
     const currentTime = Date.now();
     const currentState = this.#advanceState(currentTime);
+    const generation = this.#halfOpenGeneration;
 
     if (currentState.state === "open") {
       const cooldownEnd = currentState.openedAt + this.#cooldownMs;
@@ -594,7 +598,10 @@ export class CircuitBreaker<T = unknown> {
       }
       throw error;
     } finally {
-      if (currentState.state === "half_open") {
+      if (
+        currentState.state === "half_open" &&
+        generation === this.#halfOpenGeneration
+      ) {
         this.#state = {
           ...this.#state,
           halfOpenInFlight: Math.max(0, this.#state.halfOpenInFlight - 1),
@@ -606,7 +613,7 @@ export class CircuitBreaker<T = unknown> {
     if (isResultFail) {
       this.#handleFailure(undefined, currentState.state);
     } else if (isResultFail === false) {
-      this.#handleSuccess(currentState.state);
+      this.#handleSuccess(currentState.state, generation);
     }
     return result;
   }
@@ -743,6 +750,7 @@ export class CircuitBreaker<T = unknown> {
       consecutiveSuccesses: 0,
       halfOpenInFlight: 0,
     };
+    this.#halfOpenGeneration++;
     this.#onStateChange?.("open", "half_open");
     this.#onHalfOpen?.();
     return this.#state;
@@ -791,9 +799,10 @@ export class CircuitBreaker<T = unknown> {
   }
 
   /** Records a success and potentially closes the circuit from half-open. */
-  #handleSuccess(previousState: CircuitState): void {
+  #handleSuccess(previousState: CircuitState, generation: number): void {
     if (previousState === "closed") return;
     if (this.#state.state !== "half_open") return;
+    if (generation !== this.#halfOpenGeneration) return;
 
     const newSuccessCount = this.#state.consecutiveSuccesses + 1;
     if (newSuccessCount >= this.#successThreshold) {
