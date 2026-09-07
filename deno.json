@@ -90,6 +90,7 @@
     "./net",
     "./path",
     "./random",
+    "./rate_limit",
     "./regexp",
     "./semver",
     "./streams",
