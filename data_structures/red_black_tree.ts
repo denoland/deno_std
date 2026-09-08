@@ -18,94 +18,88 @@ const {
 } = internals;
 
 /**
- * A red-black tree. This is a kind of self-balancing binary search tree. The
- * values are in ascending order by default, using JavaScript's built-in
- * comparison operators to sort the values.
+ * A red-black tree. This is a kind of self-balancing binary search tree,
+ * extending {@linkcode BinarySearchTree}. The values are in ascending order by
+ * default, using JavaScript's built-in comparison operators to sort the
+ * values.
  *
- * Red-Black Trees require fewer rotations than AVL Trees, so they can provide
- * faster insertions and removal operations. If you need faster lookups, you
- * should use an AVL Tree instead. AVL Trees are more strictly balanced than
- * Red-Black Trees, so they can provide faster lookups.
+ * Unlike {@linkcode BinarySearchTree}, which degrades to linear time on
+ * already-ordered input, a red-black tree rebalances itself on every insertion
+ * and removal, so every lookup, insertion, and removal is logarithmic in the
+ * worst case and not just on average.
  *
- * | Method        | Average Case | Worst Case |
- * | ------------- | ------------ | ---------- |
- * | find(value)   | O(log n)     | O(log n)   |
- * | insert(value) | O(log n)     | O(log n)   |
- * | remove(value) | O(log n)     | O(log n)   |
- * | min()         | O(log n)     | O(log n)   |
- * | max()         | O(log n)     | O(log n)   |
+ * Values are unique under the comparator: inserting a value that compares
+ * equal to one already in the tree leaves the tree unchanged.
+ *
+ * Iterating with `for...of` or the spread operator yields values in-order
+ * (ascending under the default comparator) without modifying the tree. The
+ * traversal methods inherited from {@linkcode BinarySearchTree} expose the
+ * other orders.
+ *
+ * The following bounds are worst-case, where n is the number of values in the
+ * tree (or input collection for `from()`). Traversal bounds cover consuming the
+ * entire iterator; comparison and mapping functions are assumed to take O(1).
+ *
+ * | Method              | Time complexity             |
+ * | ------------------- | --------------------------- |
+ * | find(value)         | O(log n)                    |
+ * | insert(value)       | O(log n)                    |
+ * | remove(value)       | O(log n)                    |
+ * | min()               | O(log n)                    |
+ * | max()               | O(log n)                    |
+ * | size                | O(1)                        |
+ * | isEmpty()           | O(1)                        |
+ * | clear()             | O(1)                        |
+ * | lnrValues()         | O(n)                        |
+ * | rnlValues()         | O(n)                        |
+ * | nlrValues()         | O(n)                        |
+ * | lrnValues()         | O(n)                        |
+ * | lvlValues()         | O(n²)                       |
+ * | [Symbol.iterator]() | O(n)                        |
+ * | RedBlackTree()      | O(1)                        |
+ * | RedBlackTree.from() | O(n) or O(n log n)          |
+ *
+ * `lvlValues()` uses an array queue whose shifts can take linear time.
+ * `RedBlackTree.from()` takes O(n) when copying a {@linkcode RedBlackTree}
+ * without a `compare` or `map` option, and O(n log n) otherwise.
  *
  * @example Usage
  * ```ts
- * import {
- *   ascend,
- *   descend,
- *   RedBlackTree,
- * } from "@std/data-structures";
+ * import { RedBlackTree } from "@std/data-structures/red-black-tree";
  * import { assertEquals } from "@std/assert";
  *
- * const values = [3, 10, 13, 4, 6, 7, 1, 14];
- * const tree = new RedBlackTree<number>();
- * values.forEach((value) => tree.insert(value));
+ * const tree = RedBlackTree.from([3, 10, 13, 4, 6, 7, 1, 14]);
  * assertEquals([...tree], [1, 3, 4, 6, 7, 10, 13, 14]);
  * assertEquals(tree.min(), 1);
  * assertEquals(tree.max(), 14);
- * assertEquals(tree.find(42), null);
  * assertEquals(tree.find(7), 7);
- * assertEquals(tree.remove(42), false);
+ * assertEquals(tree.find(42), null);
  * assertEquals(tree.remove(7), true);
  * assertEquals([...tree], [1, 3, 4, 6, 10, 13, 14]);
+ * ```
  *
- * const invertedTree = new RedBlackTree<number>(descend);
- * values.forEach((value) => invertedTree.insert(value));
- * assertEquals([...invertedTree], [14, 13, 10, 7, 6, 4, 3, 1]);
- * assertEquals(invertedTree.min(), 14);
- * assertEquals(invertedTree.max(), 1);
- * assertEquals(invertedTree.find(42), null);
- * assertEquals(invertedTree.find(7), 7);
- * assertEquals(invertedTree.remove(42), false);
- * assertEquals(invertedTree.remove(7), true);
- * assertEquals([...invertedTree], [14, 13, 10, 6, 4, 3, 1]);
+ * @example Ordering with a custom comparison function
+ * ```ts
+ * import { RedBlackTree } from "@std/data-structures/red-black-tree";
+ * import { ascend } from "@std/data-structures/comparators";
+ * import { assertEquals } from "@std/assert";
  *
+ * // Shortest first, alphabetically within a length
  * const words = new RedBlackTree<string>((a, b) =>
  *   ascend(a.length, b.length) || ascend(a, b)
  * );
- * ["truck", "car", "helicopter", "tank", "train", "suv", "semi", "van"]
- *   .forEach((value) => words.insert(value));
- * assertEquals([...words], [
- *   "car",
- *   "suv",
- *   "van",
- *   "semi",
- *   "tank",
- *   "train",
- *   "truck",
- *   "helicopter",
- * ]);
- * assertEquals(words.min(), "car");
- * assertEquals(words.max(), "helicopter");
- * assertEquals(words.find("scooter"), null);
- * assertEquals(words.find("tank"), "tank");
- * assertEquals(words.remove("scooter"), false);
- * assertEquals(words.remove("tank"), true);
- * assertEquals([...words], [
- *   "car",
- *   "suv",
- *   "van",
- *   "semi",
- *   "train",
- *   "truck",
- *   "helicopter",
- * ]);
+ * ["truck", "car", "helicopter", "van"].forEach((word) => words.insert(word));
+ * assertEquals([...words], ["car", "van", "truck", "helicopter"]);
  * ```
  *
- * @typeparam T The type of the values being stored in the tree.
+ * @typeParam T The type of the values being stored in the tree.
  */
 export class RedBlackTree<T> extends BinarySearchTree<T> {
   /**
-   * Construct an empty red-black tree.
+   * Creates an empty red-black tree.
    *
-   * @param compare A custom comparison function for the values. The default comparison function sorts by ascending order.
+   * @param compare A custom comparison function for the values. Must be a
+   * function; defaults to sorting in ascending order via {@linkcode ascend}.
    */
   constructor(compare: (a: T, b: T) => number = ascend) {
     if (typeof compare !== "function") {
@@ -122,45 +116,66 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
    *
    * A custom comparison function can be provided to sort the values in a
    * specific order. By default, the values are sorted in ascending order,
-   * unless a {@link RedBlackTree} is passed, in which case the comparison
+   * unless a {@linkcode RedBlackTree} is passed, in which case the comparison
    * function is copied from the input tree.
    *
+   * Values that compare equal are inserted once, so the resulting tree can
+   * hold fewer values than the passed collection.
+   *
+   * The complexity of this operation is O(n) when copying a
+   * {@linkcode RedBlackTree} without a `compare` option, since the tree
+   * structure is copied as is, and O(n log n) otherwise, where n is the number
+   * of values in the passed collection.
+   *
    * @example Creating a red-black tree from an array like
-   * ```ts no-assert
-   * import { RedBlackTree } from "@std/data-structures";
+   * ```ts
+   * import { RedBlackTree } from "@std/data-structures/red-black-tree";
+   * import { assertEquals } from "@std/assert";
    *
    * const tree = RedBlackTree.from<number>([3, 10, 13, 4, 6, 7, 1, 14]);
+   * assertEquals([...tree], [1, 3, 4, 6, 7, 10, 13, 14]);
    * ```
    *
    * @example Creating a red-black tree from an iterable object
-   * ```ts no-assert
-   * import { RedBlackTree } from "@std/data-structures";
+   * ```ts
+   * import { RedBlackTree } from "@std/data-structures/red-black-tree";
+   * import { assertEquals } from "@std/assert";
    *
    * const tree = RedBlackTree.from<number>((function*() {
    *   yield 3;
    *   yield 10;
    *   yield 13;
    * })());
+   * assertEquals([...tree], [3, 10, 13]);
    * ```
    *
    * @example Creating a red-black tree from an existing red-black tree
-   * ```ts no-assert
-   * import { RedBlackTree } from "@std/data-structures";
+   * ```ts
+   * import { RedBlackTree } from "@std/data-structures/red-black-tree";
+   * import { assertEquals } from "@std/assert";
    *
    * const tree = RedBlackTree.from<number>([3, 10, 13, 4, 6, 7, 1, 14]);
    * const copy = RedBlackTree.from(tree);
+   *
+   * // The copy is independent of the original
+   * copy.remove(3);
+   * assertEquals([...copy], [1, 4, 6, 7, 10, 13, 14]);
+   * assertEquals([...tree], [1, 3, 4, 6, 7, 10, 13, 14]);
    * ```
    *
    * @example Creating a red-black tree from an array like with a custom comparison function
-   * ```ts no-assert
-   * import { RedBlackTree, descend } from "@std/data-structures";
+   * ```ts
+   * import { RedBlackTree } from "@std/data-structures/red-black-tree";
+   * import { descend } from "@std/data-structures/comparators";
+   * import { assertEquals } from "@std/assert";
    *
    * const tree = RedBlackTree.from<number>([3, 10, 13, 4, 6, 7, 1, 14], {
-   *  compare: descend,
+   *   compare: descend,
    * });
+   * assertEquals([...tree], [14, 13, 10, 7, 6, 4, 3, 1]);
    * ```
    *
-   * @typeparam T The type of the values being stored in the tree.
+   * @typeParam T The type of the values being stored in the tree.
    * @param collection An array like, an iterable, or existing red-black tree.
    * @param options An optional options object to customize the comparison function.
    * @returns A new red-black tree with the values from the passed collection.
@@ -173,31 +188,35 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
   ): RedBlackTree<T>;
   /**
    * Create a new red-black tree from an array like, an iterable object, or
-   * an existing red-black tree.
-   *
-   * A custom mapping function can be provided to transform the values before
-   * inserting them into the tree.
+   * an existing red-black tree, transforming the values with a custom mapping
+   * function before inserting them.
    *
    * A custom comparison function can be provided to sort the values in a
-   * specific order. A custom mapping function can be provided to transform the
-   * values before inserting them into the tree. By default, the values are
-   * sorted in ascending order, unless a {@link RedBlackTree} is passed, in
-   * which case the comparison function is copied from the input tree. The
-   * comparison operator is used to sort the values in the tree after mapping
-   * the values.
+   * specific order. By default, the values are sorted in ascending order,
+   * unless a {@linkcode RedBlackTree} is passed, in which case the comparison
+   * function is copied from the input tree. The comparison function is applied
+   * to the mapped values.
+   *
+   * Mapped values that compare equal are inserted once, so the resulting tree
+   * can hold fewer values than the passed collection.
+   *
+   * The complexity of this operation is O(n log n), where n is the number of
+   * values in the passed collection.
    *
    * @example Creating a red-black tree from an array like with a custom mapping function
-   * ```ts no-assert
-   * import { RedBlackTree } from "@std/data-structures";
+   * ```ts
+   * import { RedBlackTree } from "@std/data-structures/red-black-tree";
+   * import { assertEquals } from "@std/assert";
    *
    * const tree = RedBlackTree.from<number, string>([3, 10, 13, 4, 6, 7, 1, 14], {
    *   map: (value) => value.toString(),
    * });
+   * assertEquals([...tree], ["1", "10", "13", "14", "3", "4", "6", "7"]);
    * ```
-
-   * @typeparam T The type of the values in the passed collection.
-   * @typeparam U The type of the values being stored in the red-black tree.
-   * @typeparam V The type of the `this` context in the mapping function. Defaults to `undefined`.
+   *
+   * @typeParam T The type of the values in the passed collection.
+   * @typeParam U The type of the values being stored in the red-black tree.
+   * @typeParam V The type of the `this` context in the mapping function. Defaults to `undefined`.
    * @param collection An array like, an iterable, or existing red-black tree.
    * @param options The options object to customize the mapping and comparison functions. The `thisArg` property can be used to set the `this` value when calling the mapping function.
    * @returns A new red-black tree with the mapped values from the passed collection.
@@ -272,6 +291,13 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
     return result;
   }
 
+  /**
+   * Restores the black-height invariant after a black node has been removed.
+   *
+   * `current` is the node that took the removed node's place, so every path
+   * through it is one black short. The loop moves that deficit up the tree
+   * until it reaches a red node or the root, where recoloring absorbs it.
+   */
   #removeFixup(
     parent: RedBlackNode<T> | null,
     current: RedBlackNode<T> | null,
@@ -283,6 +309,8 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
         : "right";
       let sibling: RedBlackNode<T> | null = parent[siblingDirection];
 
+      // Red sibling: rotate it above the parent so the deficit gets a black
+      // sibling, which the cases below can handle.
       if (sibling?.red) {
         sibling.red = false;
         parent.red = true;
@@ -290,17 +318,22 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
         sibling = parent[siblingDirection];
       }
       if (sibling) {
+        // No red nephew: recoloring the sibling balances this subtree and
+        // hands the deficit to the parent.
         if (!sibling.left?.red && !sibling.right?.red) {
           sibling!.red = true;
           current = parent;
           parent = current.parent;
         } else {
+          // Only the inner nephew is red: rotate it outward so the outer
+          // case below applies.
           if (!sibling[siblingDirection]?.red) {
             sibling[direction]!.red = false;
             sibling.red = true;
             rotateNode(this, sibling, siblingDirection);
             sibling = parent[siblingDirection!];
           }
+          // Red outer nephew: one rotation restores the black height.
           sibling!.red = parent.red;
           parent.red = false;
           sibling![siblingDirection]!.red = false;
@@ -314,14 +347,15 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
   }
 
   /**
-   * Add a value to the red-black tree if it does not already exist in the tree.
+   * Add a value to the red-black tree, unless a value that compares equal to
+   * it is already present.
    *
    * The complexity of this operation is on average and at worst O(log n), where
    * n is the number of values in the tree.
    *
    * @example Inserting a value into the tree
    * ```ts
-   * import { RedBlackTree } from "@std/data-structures";
+   * import { RedBlackTree } from "@std/data-structures/red-black-tree";
    * import { assertEquals } from "@std/assert";
    *
    * const tree = new RedBlackTree<number>();
@@ -331,7 +365,7 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
    * ```
    *
    * @param value The value to insert into the tree.
-   * @returns `true` if the value was inserted, `false` if the value already exists in the tree.
+   * @returns `true` if the value was inserted, `false` if a value that compares equal to it already exists in the tree.
    */
   override insert(value: T): boolean {
     let node = insertNode(
@@ -340,6 +374,8 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
       value,
     ) as (RedBlackNode<T> | null);
     if (node) {
+      // A red node cannot have a red parent. Repair that violation, which each
+      // step either resolves or pushes two levels up the tree.
       while (node.parent?.red) {
         let parent: RedBlackNode<T> = node.parent!;
         const parentDirection: Direction = parent.directionFromParent()!;
@@ -349,12 +385,16 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
         const uncle: RedBlackNode<T> | null = parent.parent![uncleDirection] ??
           null;
 
+        // Red uncle: recoloring both makes the grandparent red, moving the
+        // violation up.
         if (uncle?.red) {
           parent.red = false;
           uncle.red = false;
           parent.parent!.red = true;
           node = parent.parent!;
         } else {
+          // Black uncle: line the node up with its parent, if needed, then a
+          // single rotation of the grandparent ends the loop.
           if (node === parent[uncleDirection]) {
             node = parent;
             rotateNode(this, node, parentDirection);
@@ -365,20 +405,22 @@ export class RedBlackTree<T> extends BinarySearchTree<T> {
           rotateNode(this, parent.parent!, uncleDirection);
         }
       }
+      // The root is always black.
       (getRoot(this) as RedBlackNode<T>).red = false;
     }
     return !!node;
   }
 
   /**
-   * Remove a value from the red-black tree if it exists in the tree.
+   * Remove the value that compares equal to the given value, if the tree holds
+   * one.
    *
    * The complexity of this operation is on average and at worst O(log n), where
    * n is the number of values in the tree.
    *
    * @example Removing values from the tree
    * ```ts
-   * import { RedBlackTree } from "@std/data-structures";
+   * import { RedBlackTree } from "@std/data-structures/red-black-tree";
    * import { assertEquals } from "@std/assert";
    *
    * const tree = RedBlackTree.from<number>([42]);
