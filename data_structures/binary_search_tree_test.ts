@@ -317,6 +317,26 @@ Deno.test("BinarySearchTree contains objects", () => {
   assertEquals(tree.isEmpty(), true);
 });
 
+Deno.test("BinarySearchTree.from() handles empty array-like objects", () => {
+  const tree = BinarySearchTree.from<number>({ length: 0 });
+  assertEquals([...tree], []);
+  assertEquals(tree.size, 0);
+});
+
+Deno.test("BinarySearchTree.from() handles array-like objects", () => {
+  const values = { 0: 3, 1: 1, 2: 3, 3: 2, length: 4 };
+  const tree = BinarySearchTree.from(values);
+  assertEquals([...tree], [1, 2, 3]);
+  assertEquals(tree.size, 3);
+});
+
+Deno.test("BinarySearchTree.from() handles array-like objects with a custom comparator", () => {
+  const values = { 0: 3, 1: 1, 2: 3, 3: 2, length: 4 };
+  const tree = BinarySearchTree.from(values, { compare: descend });
+  assertEquals([...tree], [3, 2, 1]);
+  assertEquals(tree.size, 3);
+});
+
 Deno.test("BinarySearchTree.from() handles iterable", () => {
   const values: number[] = [-10, 9, -1, 100, 9, 1, 0, 9, -100, 10, -9];
   const originalValues: number[] = Array.from(values);

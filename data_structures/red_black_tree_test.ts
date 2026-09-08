@@ -312,6 +312,26 @@ Deno.test("RedBlackTree works with object items", () => {
   assertEquals(tree.isEmpty(), true);
 });
 
+Deno.test("RedBlackTree.from() handles empty array-like objects", () => {
+  const tree = RedBlackTree.from<number>({ length: 0 });
+  assertEquals([...tree], []);
+  assertEquals(tree.size, 0);
+});
+
+Deno.test("RedBlackTree.from() handles array-like objects", () => {
+  const values = { 0: 3, 1: 1, 2: 3, 3: 2, length: 4 };
+  const tree = RedBlackTree.from(values);
+  assertEquals([...tree], [1, 2, 3]);
+  assertEquals(tree.size, 3);
+});
+
+Deno.test("RedBlackTree.from() handles array-like objects with a custom comparator", () => {
+  const values = { 0: 3, 1: 1, 2: 3, 3: 2, length: 4 };
+  const tree = RedBlackTree.from(values, { compare: descend });
+  assertEquals([...tree], [3, 2, 1]);
+  assertEquals(tree.size, 3);
+});
+
 Deno.test("RedBlackTree.from() handles Iterable", () => {
   const values: number[] = [-10, 9, -1, 100, 9, 1, 0, 9, -100, 10, -9];
   const originalValues: number[] = Array.from(values);

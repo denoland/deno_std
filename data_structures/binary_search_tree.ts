@@ -295,7 +295,7 @@ export class BinarySearchTree<T> implements Iterable<T> {
     }
     const values: Iterable<U> = options?.map
       ? Array.from(unmappedValues, options.map, options.thisArg)
-      : unmappedValues as U[];
+      : Array.from(unmappedValues) as unknown as U[];
     for (const value of values) result.insert(value);
     return result;
   }
