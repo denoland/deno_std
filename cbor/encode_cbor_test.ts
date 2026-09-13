@@ -455,6 +455,48 @@ Deno.test("encodeCbor() ignores inherited enumerable properties", () => {
   );
 });
 
+Deno.test("encodeCbor() sizes object keys with multi-byte characters", () => {
+  // https://github.com/denoland/std/issues/7255
+  // calcEncodingSize() previously sized object keys as `y.length` bytes,
+  // but encodeString() writes UTF-8, which needs up to 3 bytes per UTF-16
+  // code unit. A key whose UTF-8 form is longer than its UTF-16 length
+  // blew past the preallocated buffer and threw "offset is out of bounds".
+  assertEquals(
+    encodeCbor({ "é☃é☃é☃é☃": 1 }),
+    new Uint8Array([
+      0b101_00001,
+      ...encodeCbor("é☃é☃é☃é☃"),
+      ...encodeCbor(1),
+    ]),
+  );
+
+  // Mixed keys: an ASCII key next to a multi-byte key, so the size
+  // arithmetic must hold for every key independently.
+  assertEquals(
+    encodeCbor({ a: 1, "日本語": 2, b: 3 }),
+    new Uint8Array([
+      0b101_00011,
+      ...encodeCbor("a"),
+      ...encodeCbor(1),
+      ...encodeCbor("日本語"),
+      ...encodeCbor(2),
+      ...encodeCbor("b"),
+      ...encodeCbor(3),
+    ]),
+  );
+
+  // Value with a multi-byte string was already correctly sized; this guards
+  // against regressing the value branch while changing the key branch.
+  assertEquals(
+    encodeCbor({ greeting: "héllo wörld" }),
+    new Uint8Array([
+      0b101_00001,
+      ...encodeCbor("greeting"),
+      ...encodeCbor("héllo wörld"),
+    ]),
+  );
+});
+
 Deno.test("encodeCbor() encoding CborTag()", () => {
   const bytes = new Uint8Array(random(0, 24)).map((_) => random(0, 256));
   assertEquals(

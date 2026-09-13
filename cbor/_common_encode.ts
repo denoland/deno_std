@@ -55,7 +55,11 @@ export function calcEncodingSize(x: CborType): number {
   const keys = Object.keys(x);
   let size = 0;
   for (const y of keys) {
-    size += calcHeaderSize(y.length) + y.length + calcEncodingSize(x[y]);
+    // Keys are encoded via TextEncoder like string values, so they can take
+    // up to 3 UTF-8 bytes per UTF-16 code unit. Allocate against that
+    // upper bound, the same way the string-value branch does.
+    size += calcHeaderSize(y.length * 3) + y.length * 3 +
+      calcEncodingSize(x[y]);
   }
   return size + calcHeaderSize(keys.length);
 }
