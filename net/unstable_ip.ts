@@ -1,8 +1,73 @@
 // Copyright 2018-2026 the Deno authors. MIT license.
 // This module is browser compatible.
 
+const CHAR_0 = 0x30;
+const CHAR_9 = 0x39;
+
+/** Hex digit value of a char code, or -1 if it is not a hex digit. */
+function hexValue(code: number): number {
+  if (code >= CHAR_0 && code <= CHAR_9) return code - CHAR_0;
+  if (code >= 0x61 && code <= 0x66) return code - 0x61 + 10; // a-f
+  if (code >= 0x41 && code <= 0x46) return code - 0x41 + 10; // A-F
+  return -1;
+}
+
+function isDigit(code: number): boolean {
+  return code >= CHAR_0 && code <= CHAR_9;
+}
+
+/**
+ * Parses a string as an IPv4 address.
+ *
+ * The accepted syntax is the URL standard's
+ * {@link https://url.spec.whatwg.org/#valid-ipv4-address-string | valid IPv4-address string}:
+ * four decimal octets separated by `.`, each written as the shortest possible
+ * string of ASCII digits. Hexadecimal, octal and fewer-than-four-part forms are
+ * rejected, as is surrounding whitespace.
+ *
+ * @experimental **UNSTABLE**: New API, yet to be vetted.
+ *
+ * @param addr IPv4 address in a string format (e.g., "192.168.0.1").
+ * @returns The four address bytes, or `undefined` if the string is not a valid
+ * IPv4 address.
+ *
+ * @example Parse an IPv4 address
+ * ```ts
+ * import { parseIPv4 } from "@std/net/unstable-ip"
+ * import { assertEquals } from "@std/assert"
+ *
+ * assertEquals(parseIPv4("192.168.0.1"), new Uint8Array([192, 168, 0, 1]))
+ * assertEquals(parseIPv4("0x7f.0.0.1"), undefined)
+ * ```
+ */
+export function parseIPv4(addr: string): Uint8Array | undefined {
+  const parts = addr.split(".");
+  if (parts.length !== 4) return undefined;
+
+  const bytes = new Uint8Array(4);
+  for (let i = 0; i < 4; i++) {
+    const part = parts[i]!;
+    // "Shortest possible" rules out leading zeros, so each octet value has
+    // exactly one spelling and `010` cannot be read as octal.
+    if (part.length === 0 || part.length > 3) return undefined;
+    if (part.length > 1 && part.charCodeAt(0) === CHAR_0) return undefined;
+
+    let value = 0;
+    for (let j = 0; j < part.length; j++) {
+      const code = part.charCodeAt(j);
+      if (!isDigit(code)) return undefined;
+      value = value * 10 + (code - CHAR_0);
+    }
+    if (value > 255) return undefined;
+    bytes[i] = value;
+  }
+  return bytes;
+}
+
 /**
  * Validates whether a given string is a valid IPv4 address.
+ *
+ * See {@linkcode parseIPv4} for the accepted syntax.
  *
  * @experimental **UNSTABLE**: New API, yet to be vetted.
  *
@@ -22,19 +87,135 @@
  * ```
  */
 export function isIPv4(addr: string): boolean {
-  const octets = addr.split(".");
+  return parseIPv4(addr) !== undefined;
+}
 
-  return (
-    octets.length === 4 &&
-    octets.every((octet) => {
-      const n = Number(octet);
-      return n >= 0 && n <= 255 && !isNaN(n);
-    })
-  );
+/**
+ * Parses a string as an IPv6 address.
+ *
+ * Implements the URL standard's
+ * {@link https://url.spec.whatwg.org/#concept-ipv6-parser | IPv6 parser}, which
+ * covers `::` compression and the trailing `x:x:x:x:x:x:d.d.d.d` form. Zone
+ * IDs (`fe80::1%eth0`) are intentionally omitted by that standard and are
+ * rejected here too, unlike `node:net`'s `isIP()`.
+ *
+ * @experimental **UNSTABLE**: New API, yet to be vetted.
+ *
+ * @param addr IPv6 address in a string format (e.g., "2001:db8::1").
+ * @returns The sixteen address bytes, or `undefined` if the string is not a
+ * valid IPv6 address.
+ *
+ * @example Parse an IPv6 address
+ * ```ts
+ * import { parseIPv6 } from "@std/net/unstable-ip"
+ * import { assertEquals } from "@std/assert"
+ *
+ * const loopback = new Uint8Array(16)
+ * loopback[15] = 1
+ *
+ * assertEquals(parseIPv6("::1"), loopback)
+ * assertEquals(parseIPv6("2001:db8:::1"), undefined)
+ * ```
+ */
+export function parseIPv6(addr: string): Uint8Array | undefined {
+  const pieces = new Uint16Array(8);
+  let pieceIndex = 0;
+  let compress = -1;
+  let pointer = 0;
+
+  if (addr.charCodeAt(pointer) === 0x3a) { // ":"
+    if (addr.charCodeAt(pointer + 1) !== 0x3a) return undefined;
+    pointer += 2;
+    pieceIndex += 1;
+    compress = pieceIndex;
+  }
+
+  while (pointer < addr.length) {
+    if (pieceIndex === 8) return undefined;
+
+    if (addr.charCodeAt(pointer) === 0x3a) {
+      if (compress !== -1) return undefined;
+      pointer += 1;
+      pieceIndex += 1;
+      compress = pieceIndex;
+      continue;
+    }
+
+    let value = 0;
+    let length = 0;
+    while (length < 4) {
+      const digit = hexValue(addr.charCodeAt(pointer));
+      if (digit === -1) break;
+      value = value * 0x10 + digit;
+      pointer += 1;
+      length += 1;
+    }
+
+    if (addr.charCodeAt(pointer) === 0x2e) { // "."
+      if (length === 0) return undefined;
+      // Rewind: what looked like a hextet is the first octet of an IPv4 tail.
+      pointer -= length;
+      if (pieceIndex > 6) return undefined;
+
+      let numbersSeen = 0;
+      while (pointer < addr.length) {
+        let ipv4Piece = -1;
+        if (numbersSeen > 0) {
+          if (addr.charCodeAt(pointer) === 0x2e && numbersSeen < 4) {
+            pointer += 1;
+          } else return undefined;
+        }
+        if (!isDigit(addr.charCodeAt(pointer))) return undefined;
+        while (isDigit(addr.charCodeAt(pointer))) {
+          const number = addr.charCodeAt(pointer) - CHAR_0;
+          if (ipv4Piece === -1) ipv4Piece = number;
+          else if (ipv4Piece === 0) return undefined;
+          else ipv4Piece = ipv4Piece * 10 + number;
+          if (ipv4Piece > 255) return undefined;
+          pointer += 1;
+        }
+        pieces[pieceIndex] = pieces[pieceIndex]! * 0x100 + ipv4Piece;
+        numbersSeen += 1;
+        if (numbersSeen === 2 || numbersSeen === 4) pieceIndex += 1;
+      }
+      if (numbersSeen !== 4) return undefined;
+      break;
+    } else if (addr.charCodeAt(pointer) === 0x3a) {
+      pointer += 1;
+      if (pointer >= addr.length) return undefined;
+    } else if (pointer < addr.length) {
+      return undefined;
+    }
+
+    pieces[pieceIndex] = value;
+    pieceIndex += 1;
+  }
+
+  if (compress !== -1) {
+    let swaps = pieceIndex - compress;
+    pieceIndex = 7;
+    while (pieceIndex !== 0 && swaps > 0) {
+      const swapIndex = compress + swaps - 1;
+      const tmp = pieces[pieceIndex]!;
+      pieces[pieceIndex] = pieces[swapIndex]!;
+      pieces[swapIndex] = tmp;
+      pieceIndex -= 1;
+      swaps -= 1;
+    }
+  } else if (pieceIndex !== 8) return undefined;
+
+  const bytes = new Uint8Array(16);
+  for (let i = 0; i < 8; i++) {
+    bytes[i * 2] = pieces[i]! >>> 8;
+    bytes[i * 2 + 1] = pieces[i]! & 0xff;
+  }
+  return bytes;
 }
 
 /**
  * Validates whether a given string is a IPv6 address.
+ *
+ * See {@linkcode parseIPv6} for the accepted syntax.
  *
  * @experimental **UNSTABLE**: New API, yet to be vetted.
  *
@@ -54,38 +235,7 @@ export function isIPv4(addr: string): boolean {
  * ```
  */
 export function isIPv6(addr: string): boolean {
-  // more than one use of ::
-  if (addr.split("::").length > 2) return false;
-
-  const hextets = addr.split(":");
-
-  // x:x:x:x:x:x:d.d.d.d (https://www.rfc-editor.org/rfc/rfc4291#section-2.2)
-  // check if has ipv4 on
-  if (addr.includes(".")) {
-    // is just an ipv4
-    if (hextets.length === 1) return false;
-
-    const last = hextets.pop();
-    if (!last || !isIPv4(last)) return false;
-
-    // just to maintain the length to 8
-    hextets.push("");
-  }
-
-  // expand ::
-  while (hextets.length < 8) {
-    const idx = hextets.indexOf("");
-    if (idx === -1) break;
-    hextets.splice(idx, 0, "");
-  }
-
-  return (
-    hextets.length === 8 &&
-    hextets.every((hextet) => {
-      const n = hextet === "" ? 0 : parseInt(hextet, 16);
-      return n >= 0 && n <= 65535 && !isNaN(n);
-    })
-  );
+  return parseIPv6(addr) !== undefined;
 }
 
 /**
@@ -110,55 +260,79 @@ export function isIPv6(addr: string): boolean {
  * ```
  */
 export function matchSubnets(addr: string, subnetOrIps: string[]): boolean {
-  if (!isValidIP(addr)) {
-    return false;
-  }
+  const isV4 = isIPv4(addr);
+  if (!isV4 && !isIPv6(addr)) return false;
 
   for (const subnetOrIp of subnetOrIps) {
-    if (matchSubnet(addr, subnetOrIp)) {
-      return true;
+    // Without a "/" the entry is a specific address, compared verbatim.
+    if (!subnetOrIp.includes("/")) {
+      if (addr === subnetOrIp) return true;
+      continue;
     }
+    const matched = isV4
+      ? matchIPv4Subnet(addr, subnetOrIp)
+      : matchIPv6Subnet(addr, subnetOrIp);
+    if (matched) return true;
   }
 
   return false;
 }
 
-function matchSubnet(addr: string, subnet: string): boolean {
-  // If the subnet doesn't contain "/", treat it as a specific IP address
-  if (!subnet.includes("/")) {
-    return addr === subnet;
-  }
+/**
+ * Parses a CIDR prefix length: decimal digits only, within range. Unlike an
+ * address octet, a zero-padded length has only one reading, so `/024` is
+ * accepted.
+ */
+function parsePrefixLength(
+  prefix: string,
+  maxLength: number,
+): number | undefined {
+  if (prefix.length === 0) return undefined;
 
-  // Parse subnet into IP address and prefix length
-  const [subnetIP, prefixLengthStr] = subnet.split("/");
-  if (
-    !subnetIP ||
-    subnetIP === "" ||
-    !prefixLengthStr ||
-    prefixLengthStr === ""
-  ) {
-    return false;
+  let value = 0;
+  for (let i = 0; i < prefix.length; i++) {
+    const code = prefix.charCodeAt(i);
+    if (!isDigit(code)) return undefined;
+    value = value * 10 + (code - CHAR_0);
+    if (value > maxLength) return undefined;
   }
-
-  // Check if both IP and subnet are the same type (IPv4 or IPv6)
-  const ipIsV4 = isIPv4(addr);
-  const subnetIsV4 = isIPv4(subnetIP);
-
-  // IP and subnet must be the same version (both IPv4 or both IPv6)
-  if (ipIsV4 !== subnetIsV4) {
-    return false;
-  }
-
-  // Delegate to the appropriate subnet matching function
-  if (ipIsV4) {
-    return matchIPv4Subnet(addr, subnet);
-  } else {
-    return matchIPv6Subnet(addr, subnet);
-  }
+  return value;
 }
 
-function isValidIP(ip: string): boolean {
-  return isIPv4(ip) || isIPv6(ip);
+/** Splits `a.b.c.d/n` into its address and prefix length. */
+function parseSubnet(
+  subnet: string,
+  parse: (addr: string) => Uint8Array | undefined,
+  maxLength: number,
+): [Uint8Array, number] | undefined {
+  const slash = subnet.indexOf("/");
+  if (slash === -1) return undefined;
+
+  const bytes = parse(subnet.slice(0, slash));
+  if (bytes === undefined) return undefined;
+
+  const prefixLength = parsePrefixLength(subnet.slice(slash + 1), maxLength);
+  if (prefixLength === undefined) return undefined;
+
+  return [bytes, prefixLength];
+}
+
+/** Compares the leading `prefixLength` bits of two equal-length addresses. */
+function matchPrefix(
+  addr: Uint8Array,
+  subnet: Uint8Array,
+  prefixLength: number,
+): boolean {
+  const fullBytes = prefixLength >> 3;
+  for (let i = 0; i < fullBytes; i++) {
+    if (addr[i] !== subnet[i]) return false;
+  }
+
+  const remainingBits = prefixLength & 7;
+  if (remainingBits === 0) return true;
+
+  const mask = (0xff << (8 - remainingBits)) & 0xff;
+  return (addr[fullBytes]! & mask) === (subnet[fullBytes]! & mask);
 }
 
 /**
@@ -180,50 +354,13 @@ function isValidIP(ip: string): boolean {
  * ```
  */
 export function matchIPv4Subnet(addr: string, subnet: string): boolean {
-  const [subnetIP, prefixLengthStr] = subnet.split("/");
+  const addrBytes = parseIPv4(addr);
+  if (addrBytes === undefined) return false;
 
-  const prefix = parseInt(prefixLengthStr!, 10);
-  if (isNaN(prefix)) {
-    return false;
-  }
+  const parsed = parseSubnet(subnet, parseIPv4, 32);
+  if (parsed === undefined) return false;
 
-  if (
-    !subnetIP ||
-    subnetIP === "" ||
-    !prefixLengthStr ||
-    prefixLengthStr === ""
-  ) {
-    return false;
-  }
-
-  if (prefix < 0 || prefix > 32) {
-    return false;
-  }
-
-  // Special case: /0 matches all IPv4 addresses
-  if (prefix === 0) {
-    return true;
-  }
-
-  const ipBytes = addr.split(".").map(Number);
-  const subnetBytes = subnetIP.split(".").map(Number);
-
-  if (ipBytes.length !== 4 || subnetBytes.length !== 4) {
-    return false;
-  }
-
-  const mask = (0xffffffff << (32 - prefix)) >>> 0;
-
-  const ipInt = (ipBytes[0]! << 24) |
-    (ipBytes[1]! << 16) |
-    (ipBytes[2]! << 8) |
-    ipBytes[3]!;
-  const subnetInt = (subnetBytes[0]! << 24) |
-    (subnetBytes[1]! << 16) |
-    (subnetBytes[2]! << 8) |
-    subnetBytes[3]!;
-
-  return ((ipInt >>> 0) & mask) === ((subnetInt >>> 0) & mask);
+  return matchPrefix(addrBytes, parsed[0], parsed[1]);
 }
 
 /**
@@ -245,107 +382,11 @@ export function matchIPv4Subnet(addr: string, subnet: string): boolean {
  * ```
  */
 export function matchIPv6Subnet(addr: string, subnet: string): boolean {
-  const [subnetIP, prefixLengthStr] = subnet.split("/");
+  const addrBytes = parseIPv6(addr);
+  if (addrBytes === undefined) return false;
 
-  const prefix = parseInt(prefixLengthStr!, 10);
-  if (isNaN(prefix)) {
-    return false;
-  }
+  const parsed = parseSubnet(subnet, parseIPv6, 128);
+  if (parsed === undefined) return false;
 
-  if (
-    !subnetIP ||
-    subnetIP === "" ||
-    !prefixLengthStr ||
-    prefixLengthStr === ""
-  ) {
-    return false;
-  }
-
-  if (prefix < 0 || prefix > 128) {
-    return false;
-  }
-
-  if (prefix === 0) {
-    return true;
-  }
-
-  const ipExpanded = expandIPv6(addr);
-  const subnetExpanded = expandIPv6(subnetIP);
-
-  if (!ipExpanded || !subnetExpanded) {
-    return false;
-  }
-
-  const ipBytes = ipv6ToBytes(ipExpanded);
-  const subnetBytes = ipv6ToBytes(subnetExpanded);
-
-  const fullBytes = Math.floor(prefix / 8);
-  const remainingBits = prefix % 8;
-
-  for (let i = 0; i < fullBytes; i++) {
-    if (ipBytes[i] !== subnetBytes[i]) {
-      return false;
-    }
-  }
-
-  if (remainingBits > 0) {
-    const mask = 0xff << (8 - remainingBits);
-    const ipByte = ipBytes[fullBytes]!;
-    const subnetByte = subnetBytes[fullBytes]!;
-    return (ipByte & mask) === (subnetByte & mask);
-  }
-
-  return true;
-}
-
-function expandIPv6(addr: string): string | null {
-  if (addr.includes(".")) {
-    const parts = addr.split(":");
-    const ipv4Part = parts.pop();
-    if (!ipv4Part) {
-      return null;
-    }
-    const ipv4Bytes = ipv4Part!.split(".").map(Number);
-    if (ipv4Bytes.length !== 4) {
-      return null;
-    }
-    const ipv4Hex =
-      ((ipv4Bytes[0]! << 8) | ipv4Bytes[1]!).toString(16).padStart(4, "0") +
-      ":" +
-      ((ipv4Bytes[2]! << 8) | ipv4Bytes[3]!).toString(16).padStart(4, "0");
-    addr = parts.join(":") + ":" + ipv4Hex;
-  }
-
-  let expanded = addr;
-
-  // Handle ::
-  if (expanded.includes("::")) {
-    const parts = expanded.split("::");
-    const leftParts = parts[0] ? parts[0].split(":") : [];
-    const rightParts = parts[1] ? parts[1].split(":") : [];
-    const missingParts = 8 - leftParts.length - rightParts.length;
-
-    expanded = leftParts
-      .concat(new Array(missingParts).fill("0"))
-      .concat(rightParts)
-      .join(":");
-  }
-
-  // Pad each hextet to 4 digits
-  return expanded
-    .split(":")
-    .map((hextet) => hextet.padStart(4, "0"))
-    .join(":");
-}
-
-function ipv6ToBytes(expandedIPv6: string): number[] {
-  const hextets = expandedIPv6.split(":");
-  const bytes: number[] = [];
-
-  for (const hextet of hextets) {
-    const value = parseInt(hextet, 16);
-    bytes.push((value >> 8) & 0xff, value & 0xff);
-  }
-
-  return bytes;
+  return matchPrefix(addrBytes, parsed[0], parsed[1]);
 }
