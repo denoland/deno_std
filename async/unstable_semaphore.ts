@@ -12,6 +12,12 @@ interface Node {
  *
  * @experimental **UNSTABLE**: New API, yet to be vetted.
  *
+ * The instance methods are bound in the constructor so they can be safely
+ * destructured or passed as bare callbacks. Each instance therefore owns
+ * bound copies that shadow the prototype methods: they show up in
+ * `Object.keys()`, and prototype-level stubs do not affect instances that
+ * already exist.
+ *
  * @example Usage
  * ```ts
  * import { Semaphore } from "@std/async/unstable-semaphore";
@@ -45,6 +51,11 @@ export class Semaphore {
       );
     }
     this.#count = this.#max = max;
+    // Bind the public methods so they remain safe when destructured or passed
+    // as bare callbacks such as `.finally(sem.release)` (issue #7195).
+    this.acquire = this.acquire.bind(this);
+    this.tryAcquire = this.tryAcquire.bind(this);
+    this.release = this.release.bind(this);
   }
 
   /**

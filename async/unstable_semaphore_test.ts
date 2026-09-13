@@ -97,3 +97,50 @@ Deno.test("Semaphore.release() ignores extra releases beyond max", async () => {
   // Third acquire should block
   await assertBlocks(sem.acquire(), () => sem.release());
 });
+
+Deno.test("Semaphore.release() can be passed unbound to .finally()", async () => {
+  // Regression test for issue #7195.
+  // `.finally()` invokes the callback with no `this`, so `release` must still
+  // reach its private fields when handed over as a bare method reference.
+  // The permit is held by the first acquire; the callback fires when the
+  // unrelated promise settles, and the queued second acquire proves the
+  // release went through.
+  const sem = new Semaphore(1);
+  await sem.acquire();
+  const { promise: some, resolve: settle } = Promise.withResolvers<void>();
+  const chained = some.finally(sem.release);
+  const waiter = sem.acquire();
+  settle();
+  await chained;
+  await waiter;
+});
+
+Deno.test("Semaphore.release() can be destructured", async () => {
+  // Regression test for issue #7195.
+  // Destructuring pulls the method off the instance, which would normally
+  // drop the `this` binding without an explicit bind.
+  const sem = new Semaphore(1);
+  const { release } = sem;
+  await sem.acquire();
+  await assertBlocks(sem.acquire(), release);
+});
+
+Deno.test("Semaphore.acquire() can be destructured", async () => {
+  // Regression test for issue #7195.
+  // `acquire` reads the same private fields and fails identically when
+  // destructured.
+  const sem = new Semaphore(1);
+  const { acquire, release } = sem;
+  await acquire();
+  await assertBlocks(acquire(), release);
+});
+
+Deno.test("Semaphore.tryAcquire() can be destructured", () => {
+  // Regression test for issue #7195.
+  const sem = new Semaphore(1);
+  const { tryAcquire } = sem;
+  const permit = tryAcquire();
+  assertExists(permit);
+  permit[Symbol.dispose]();
+  assertExists(sem.tryAcquire());
+});
